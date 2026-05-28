@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 *.csv
 keeper_overrides.csv
+.env
+yahoo_token.json

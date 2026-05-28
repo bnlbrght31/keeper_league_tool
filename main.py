@@ -1,7 +1,8 @@
 import argparse
 import sys
 
-from providers.sleeper import fetch_keeper_data, build_report, write_csv, load_manual_keeper_overrides
+import providers.sleeper as sleeper
+import providers.yahoo as yahoo
 
 
 def main():
@@ -10,8 +11,8 @@ def main():
     )
     parser.add_argument(
         "provider",
-        choices=["sleeper"],
-        help="Fantasy platform (sleeper; yahoo and espn coming soon)",
+        choices=["sleeper", "yahoo"],
+        help="Fantasy platform (espn coming soon)",
     )
     parser.add_argument("league_id", help="Your league ID")
     parser.add_argument(
@@ -24,19 +25,29 @@ def main():
         default="keeper_overrides.csv",
         help="Optional CSV with manual keeper counts: columns Player, Keeper Count (default: keeper_overrides.csv)",
     )
+    parser.add_argument(
+        "--season",
+        type=int,
+        default=2025,
+        help="Season year to pull data for (default: 2025)",
+    )
     args = parser.parse_args()
 
-    if args.provider == "sleeper":
-        try:
-            manual_overrides = load_manual_keeper_overrides(args.keepers)
-            data = fetch_keeper_data(args.league_id)
-            rows = build_report(data, manual_overrides)
-            write_csv(rows, args.output)
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        print(f"{args.provider} not yet implemented.", file=sys.stderr)
+    try:
+        if args.provider == "sleeper":
+            manual_overrides = sleeper.load_manual_keeper_overrides(args.keepers)
+            data = sleeper.fetch_keeper_data(args.league_id)
+            rows = sleeper.build_report(data, manual_overrides)
+            sleeper.write_csv(rows, args.output)
+
+        elif args.provider == "yahoo":
+            manual_overrides = yahoo.load_manual_keeper_overrides(args.keepers)
+            data = yahoo.fetch_keeper_data(args.league_id, season=args.season)
+            rows = yahoo.build_report(data, manual_overrides)
+            yahoo.write_csv(rows, args.output)
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 
