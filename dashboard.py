@@ -31,23 +31,54 @@ def _canonical_managers(seasons):
 
 def _compute_alltime_standings(seasons):
     k2m = _build_key_to_manager(seasons)
-    totals = {}  # manager → {wins, losses, ties, pf, pa, seasons, titles}
+    totals = {}  # manager → {wins, losses, ties, pf, pa, seasons, titles, season_records}
 
     for s in seasons:
         champ = next((t["manager"] for t in s["standings"] if t["rank"] == 1), None)
+
+        # Championship bracket playoff W/L keyed by team_key
+        po_record = {}  # team_key → [wins, losses]
+        for match in s["all_matchups"]:
+            if not match["is_playoffs"] or match.get("is_consolation"):
+                continue
+            ka, kb = match["key_a"], match["key_b"]
+            for k in (ka, kb):
+                if k not in po_record:
+                    po_record[k] = [0, 0]
+            if match["score_a"] > match["score_b"]:
+                po_record[ka][0] += 1
+                po_record[kb][1] += 1
+            elif match["score_b"] > match["score_a"]:
+                po_record[kb][0] += 1
+                po_record[ka][1] += 1
+
         for t in s["standings"]:
             m = t["manager"]
             if m not in totals:
                 totals[m] = {"manager": m, "wins": 0, "losses": 0, "ties": 0,
-                              "pf": 0.0, "pa": 0.0, "seasons": 0, "titles": 0}
+                              "pf": 0.0, "pa": 0.0, "seasons": 0, "titles": 0,
+                              "season_records": []}
             totals[m]["wins"] += t["wins"]
             totals[m]["losses"] += t["losses"]
             totals[m]["ties"] += t["ties"]
             totals[m]["pf"] += t["pf"]
             totals[m]["pa"] += t["pa"]
             totals[m]["seasons"] += 1
-            if m == champ:
+            champion = (m == champ)
+            if champion:
                 totals[m]["titles"] += 1
+            po = po_record.get(t["team_key"], None)
+            totals[m]["season_records"].append({
+                "season": s["season"],
+                "wins": t["wins"],
+                "losses": t["losses"],
+                "pf": round(t["pf"], 1),
+                "pa": round(t["pa"], 1),
+                "rank": t["rank"],
+                "champion": champion,
+                "po_wins": po[0] if po else None,
+                "po_losses": po[1] if po else None,
+            })
 
     rows = []
     for m, d in totals.items():
@@ -55,6 +86,7 @@ def _compute_alltime_standings(seasons):
         d["win_pct"] = round(d["wins"] / played, 3) if played else 0.0
         d["pf"] = round(d["pf"], 1)
         d["pa"] = round(d["pa"], 1)
+        d["season_records"].sort(key=lambda r: r["season"])
         rows.append(d)
 
     rows.sort(key=lambda r: (-r["win_pct"], -r["wins"], -r["pf"]))
@@ -117,7 +149,69 @@ def _compute_head_to_head(seasons):
                 best_nemesis = opp
         nemeses[m] = {"nemesis": best_nemesis, "win_pct": round(worst_pct, 3) if best_nemesis else None}
 
-    return {"managers": managers, "matrix": matrix, "nemeses": nemeses}
+    streaks = _compute_h2h_streaks(seasons, k2m)
+    return {"managers": managers, "matrix": matrix, "nemeses": nemeses, "streaks": streaks}
+
+
+def _compute_h2h_streaks(seasons, k2m):
+    # Collect all regular-season matchups ordered by (season, week)
+    ordered = []
+    for s in seasons:
+        for match in s["matchups"]:
+            ma = k2m.get(match["key_a"])
+            mb = k2m.get(match["key_b"])
+            if not ma or not mb or ma == mb:
+                continue
+            if match["score_a"] > match["score_b"]:
+                ordered.append((s["season"], match["week"], ma, mb))
+            elif match["score_b"] > match["score_a"]:
+                ordered.append((s["season"], match["week"], mb, ma))
+    ordered.sort(key=lambda x: (x[0], x[1]))
+
+    # Group by pair, preserving chronological order
+    pair_games = {}  # (a,b) canonical sorted → [(winner, loser), ...]
+    for _, _, winner, loser in ordered:
+        key = tuple(sorted([winner, loser]))
+        pair_games.setdefault(key, []).append((winner, loser))
+
+    # Store per-pair data so the JS can recompute top-5 and per-manager
+    # summaries dynamically after filtering to active players.
+    pair_streaks = []  # {manager, vs, alltime, active_wins}
+
+    for (a, b), games in pair_games.items():
+        # All-time max streak per direction
+        max_streak = {a: 0, b: 0}
+        cur_winner, cur_len = None, 0
+        for winner, _ in games:
+            if winner == cur_winner:
+                cur_len += 1
+            else:
+                cur_winner, cur_len = winner, 1
+            if cur_len > max_streak[winner]:
+                max_streak[winner] = cur_len
+
+        # Current (active) streak
+        active_wins = {a: 0, b: 0}
+        cur_winner, cur_len = None, 0
+        for winner, _ in reversed(games):
+            if cur_winner is None:
+                cur_winner, cur_len = winner, 1
+            elif winner == cur_winner:
+                cur_len += 1
+            else:
+                break
+        active_wins[cur_winner] = cur_len
+
+        for mgr in (a, b):
+            opp = b if mgr == a else a
+            pair_streaks.append({
+                "manager": mgr,
+                "vs": opp,
+                "alltime": max_streak[mgr],
+                "active_wins": active_wins[mgr],
+            })
+
+    return {"pair_streaks": pair_streaks}
 
 
 def _compute_records(seasons):
@@ -322,6 +416,17 @@ tr:hover td{{background:#1c2128}}
 .rec-sub{{font-size:13px;color:#58a6ff}}
 .rec-detail{{font-size:12px;color:#8b949e;margin-top:4px}}
 .nemesis-row td:first-child{{font-weight:600;color:#e6edf3}}
+.filter-bar{{display:flex;align-items:center;gap:10px;margin-bottom:20px}}
+.filter-bar label{{font-size:13px;color:#8b949e;font-weight:600}}
+.filter-bar select{{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer}}
+.mgr-link{{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}}
+.mgr-link:hover{{color:#58a6ff}}
+.expand-row td{{padding:0;border-bottom:1px solid #21262d}}
+.expand-inner{{padding:12px 16px 16px 40px;background:#0d1117}}
+.expand-inner table{{font-size:13px}}
+.expand-inner th{{font-size:11px;padding:6px 10px}}
+.expand-inner td{{padding:6px 10px;border-bottom:1px solid #161b22}}
+.expand-inner tr:last-child td{{border-bottom:none}}
 </style>
 </head>
 <body>
@@ -337,6 +442,13 @@ tr:hover td{{background:#1c2128}}
 </nav>
 
 <div id="standings" class="section active">
+  <div class="filter-bar">
+    <label for="standings-filter">Show:</label>
+    <select id="standings-filter" onchange="renderTable()">
+      <option value="all">All Players</option>
+      <option value="active">Active Players</option>
+    </select>
+  </div>
   <h2>All-Time Standings</h2>
   <div class="card">
     <table id="standings-tbl">
@@ -362,6 +474,13 @@ tr:hover td{{background:#1c2128}}
 </div>
 
 <div id="h2h" class="section">
+  <div class="filter-bar">
+    <label for="h2h-filter">Show:</label>
+    <select id="h2h-filter" onchange="renderH2H()">
+      <option value="all">All Players</option>
+      <option value="active">Active Players</option>
+    </select>
+  </div>
   <h2>Head-to-Head Records</h2>
   <div class="card matrix-wrap">
     <table class="matrix" id="h2h-tbl"></table>
@@ -373,6 +492,31 @@ tr:hover td{{background:#1c2128}}
       <tbody></tbody>
     </table>
   </div>
+
+  <h2 style="margin-top:32px">H2H Winning Streaks — Per Manager</h2>
+  <div class="card">
+    <table id="streak-mgr-tbl">
+      <thead><tr><th>Manager</th><th>Best All-Time Streak</th><th>vs</th><th>Current Streak</th><th>vs</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+    <div class="card">
+      <h2 style="margin-bottom:16px">Top 5 All-Time H2H Streaks</h2>
+      <table id="streak-alltime-tbl">
+        <thead><tr><th>Manager</th><th>vs</th><th>Consecutive Wins</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:16px">Top 5 Active H2H Streaks</h2>
+      <table id="streak-active-tbl">
+        <thead><tr><th>Manager</th><th>vs</th><th>Active Wins</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <div id="records" class="section">
@@ -382,6 +526,12 @@ tr:hover td{{background:#1c2128}}
 
 <script>
 const DATA = {data_json};
+const ACTIVE = new Set(DATA.active_managers);
+
+function activeFilter(selectId) {{
+  const sel = document.getElementById(selectId);
+  return sel && sel.value === 'active' ? ACTIVE : null;
+}}
 
 function show(id) {{
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -394,12 +544,44 @@ function show(id) {{
 (function buildStandings() {{
   let sortKey = 'win_pct', sortDir = -1;
 
-  function renderRow(r, i) {{
+  function renderExpandRow(r, ncols) {{
     const tr = document.createElement('tr');
+    tr.className = 'expand-row';
+    function finishBadge(s) {{
+      if (s.champion) return '🏆';
+      if (s.rank === 2) return '🥈';
+      if (s.rank === 3) return '🥉';
+      return s.rank > 0 ? '#' + s.rank : '—';
+    }}
+    function poCell(s) {{
+      if (s.po_wins === null) return '<td class="neutral">—</td>';
+      return `<td>${{s.po_wins}}–${{s.po_losses}}</td>`;
+    }}
+    const seasonRows = [...r.season_records].reverse().filter(s => s.wins + s.losses > 0).map(s => `
+      <tr>
+        <td>${{s.season}}</td>
+        <td class="win">${{s.wins}}</td>
+        <td class="loss">${{s.losses}}</td>
+        <td>${{s.pf.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
+        <td class="neutral">${{s.pa.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
+        ${{poCell(s)}}
+        <td>${{finishBadge(s)}}</td>
+      </tr>`).join('');
+    tr.innerHTML = `<td colspan="${{ncols}}"><div class="expand-inner">
+      <table>
+        <thead><tr><th>Season</th><th>RS W</th><th>RS L</th><th>PF</th><th>PA</th><th>Playoffs</th><th>Finish</th></tr></thead>
+        <tbody>${{seasonRows}}</tbody>
+      </table></div></td>`;
+    return tr;
+  }}
+
+  function renderRow(r, i, ncols) {{
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
     const trophy = r.titles > 0 ? ` <span style="color:#ffd700">${{'🏆'.repeat(r.titles)}}</span>` : '';
     tr.innerHTML = `
       <td class="rank">${{i + 1}}</td>
-      <td><strong>${{r.manager}}</strong>${{trophy}}</td>
+      <td><span class="mgr-link"><strong>${{r.manager}}</strong></span>${{trophy}}</td>
       <td class="neutral">${{r.seasons}}</td>
       <td class="win">${{r.wins}}</td>
       <td class="loss">${{r.losses}}</td>
@@ -408,18 +590,30 @@ function show(id) {{
       <td class="neutral">${{r.pa.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
       <td>${{r.titles > 0 ? r.titles : '—'}}</td>
     `;
+    tr.addEventListener('click', () => {{
+      const next = tr.nextElementSibling;
+      if (next && next.classList.contains('expand-row')) {{
+        next.remove();
+      }} else {{
+        tr.insertAdjacentElement('afterend', renderExpandRow(r, ncols));
+      }}
+    }});
     return tr;
   }}
 
-  function renderTable() {{
-    const sorted = [...DATA.alltime].sort((a, b) => {{
-      const av = a[sortKey], bv = b[sortKey];
-      return typeof av === 'string' ? av.localeCompare(bv) * sortDir : (av - bv) * sortDir;
-    }});
+  window.renderTable = function() {{
+    const flt = activeFilter('standings-filter');
+    const sorted = [...DATA.alltime]
+      .filter(r => !flt || flt.has(r.manager))
+      .sort((a, b) => {{
+        const av = a[sortKey], bv = b[sortKey];
+        return typeof av === 'string' ? av.localeCompare(bv) * sortDir : (av - bv) * sortDir;
+      }});
     const tbody = document.querySelector('#standings-tbl tbody');
+    const ncols = document.querySelectorAll('#standings-tbl thead th').length;
     tbody.innerHTML = '';
-    sorted.forEach((r, i) => tbody.appendChild(renderRow(r, i)));
-  }}
+    sorted.forEach((r, i) => tbody.appendChild(renderRow(r, i, ncols)));
+  }};
 
   document.querySelectorAll('#standings-tbl th.sortable').forEach(th => {{
     th.addEventListener('click', () => {{
@@ -452,15 +646,17 @@ function show(id) {{
 }})();
 
 // ── Head-to-Head ───────────────────────────────────────────────────────────
-(function buildH2H() {{
-  const {{managers, matrix, nemeses}} = DATA.h2h;
-  const tbl = document.getElementById('h2h-tbl');
+function renderH2H() {{
+  const flt = activeFilter('h2h-filter');
+  const {{managers: allMgrs, matrix, nemeses, streaks}} = DATA.h2h;
+  const managers = flt ? allMgrs.filter(m => flt.has(m)) : allMgrs;
 
-  // Header row
+  // Matrix
+  const tbl = document.getElementById('h2h-tbl');
+  tbl.innerHTML = '';
   const hdr = document.createElement('tr');
   hdr.innerHTML = '<th></th>' + managers.map(m => `<th title="${{m}}">${{m.split(' ')[0]}}</th>`).join('');
   tbl.appendChild(hdr);
-
   managers.forEach(row => {{
     const tr = document.createElement('tr');
     let cells = `<td class="row-label" title="${{row}}">${{row}}</td>`;
@@ -481,22 +677,99 @@ function show(id) {{
     tbl.appendChild(tr);
   }});
 
-  // Nemesis table
+  // Nemesis — recompute from matrix against visible opponents only
   const ntbody = document.querySelector('#nemesis-tbl tbody');
+  ntbody.innerHTML = '';
   managers.forEach(m => {{
-    const n = nemeses[m];
-    if (!n.nemesis) return;
-    const rec = matrix[m][n.nemesis];
+    let worstOpp = null, worstPct = 1.1;
+    managers.forEach(opp => {{
+      if (opp === m) return;
+      const rec = matrix[m][opp];
+      if (!rec) return;
+      const tot = rec.wins + rec.losses;
+      if (tot < 3) return;
+      const pct = rec.wins / tot;
+      if (pct < worstPct) {{ worstPct = pct; worstOpp = opp; }}
+    }});
+    if (!worstOpp) return;
+    const rec = matrix[m][worstOpp];
     const tr = document.createElement('tr');
     tr.className = 'nemesis-row';
     tr.innerHTML = `
       <td>${{m}}</td>
-      <td style="color:#f85149">${{n.nemesis}}</td>
-      <td class="loss">${{rec.wins}}–${{rec.losses}} (${{(n.win_pct*100).toFixed(0)}}% win rate)</td>
+      <td style="color:#f85149">${{worstOpp}}</td>
+      <td class="loss">${{rec.wins}}–${{rec.losses}} (${{(worstPct*100).toFixed(0)}}% win rate)</td>
     `;
     ntbody.appendChild(tr);
   }});
-}})();
+
+  // Streaks — recompute from pair_streaks after applying active filter
+  const pairs = DATA.h2h.streaks.pair_streaks.filter(
+    p => !flt || (flt.has(p.manager) && flt.has(p.vs))
+  );
+
+  // Per-manager: best alltime and active streak among filtered opponents
+  const pmBest = {{}}, pmActive = {{}};
+  pairs.forEach(p => {{
+    if (!pmBest[p.manager] || p.alltime > pmBest[p.manager].length) {{
+      pmBest[p.manager] = {{length: p.alltime, opps: [p.vs]}};
+    }} else if (p.alltime === pmBest[p.manager].length && !pmBest[p.manager].opps.includes(p.vs)) {{
+      pmBest[p.manager].opps.push(p.vs);
+    }}
+    if (p.active_wins >= 2) {{
+      if (!pmActive[p.manager] || p.active_wins > pmActive[p.manager].length) {{
+        pmActive[p.manager] = {{length: p.active_wins, opps: [p.vs]}};
+      }} else if (p.active_wins === pmActive[p.manager].length && !pmActive[p.manager].opps.includes(p.vs)) {{
+        pmActive[p.manager].opps.push(p.vs);
+      }}
+    }}
+  }});
+
+  function oppLabel(rec) {{
+    if (!rec) return '—';
+    if (rec.opps.length === 1) return rec.opps[0];
+    return `${{rec.opps.length}} opponents (${{rec.opps.join(', ')}})`;
+  }}
+
+  const pmBody = document.querySelector('#streak-mgr-tbl tbody');
+  pmBody.innerHTML = '';
+  managers.forEach(m => {{
+    const best = pmBest[m], act = pmActive[m];
+    if (!best) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${{m}}</strong></td>
+      <td>${{best.length}}</td>
+      <td class="neutral">${{oppLabel(best)}}</td>
+      <td>${{act ? act.length : '—'}}</td>
+      <td class="neutral">${{act ? oppLabel(act) : '—'}}</td>
+    `;
+    pmBody.appendChild(tr);
+  }});
+
+  // Top 5 all-time from filtered pairs
+  const top_alltime = [...pairs].sort((a,b) => b.alltime - a.alltime).slice(0,5);
+  const atBody = document.querySelector('#streak-alltime-tbl tbody');
+  atBody.innerHTML = '';
+  top_alltime.forEach(s => {{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${{s.manager}}</strong></td><td class="neutral">${{s.vs}}</td><td style="font-weight:700">${{s.alltime}}</td>`;
+    atBody.appendChild(tr);
+  }});
+  if (!top_alltime.length) atBody.innerHTML = '<tr><td colspan="3" class="neutral">No data</td></tr>';
+
+  // Top 5 active from filtered pairs
+  const top_active = [...pairs].filter(p => p.active_wins >= 2).sort((a,b) => b.active_wins - a.active_wins).slice(0,5);
+  const acBody = document.querySelector('#streak-active-tbl tbody');
+  acBody.innerHTML = '';
+  top_active.forEach(s => {{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${{s.manager}}</strong></td><td class="neutral">${{s.vs}}</td><td style="font-weight:700;color:#3fb950">${{s.active_wins}}</td>`;
+    acBody.appendChild(tr);
+  }});
+  if (!top_active.length) acBody.innerHTML = '<tr><td colspan="3" class="neutral">No active streaks ≥ 2</td></tr>';
+}}
+renderH2H();
 
 // ── Records ────────────────────────────────────────────────────────────────
 (function buildRecords() {{
@@ -569,11 +842,16 @@ def build_dashboard(seasons, output_path="dashboard/index.html"):
     years = [s["season"] for s in seasons]
     year_range = f"{min(years)}–{max(years)}"
 
+    completed = [s for s in seasons if any(t["wins"] + t["losses"] > 0 for t in s["standings"])]
+    latest = max(completed, key=lambda s: s["season"]) if completed else None
+    active_managers = [t["manager"] for t in latest["standings"]] if latest else []
+
     stats = {
-        "alltime":   _compute_alltime_standings(seasons),
-        "champions": _compute_champions(seasons),
-        "h2h":       _compute_head_to_head(seasons),
-        "records":   _compute_records(seasons),
+        "alltime":         _compute_alltime_standings(seasons),
+        "champions":       _compute_champions(seasons),
+        "h2h":             _compute_head_to_head(seasons),
+        "records":         _compute_records(seasons),
+        "active_managers": active_managers,
     }
 
     data_json = json.dumps(stats, separators=(",", ":"))

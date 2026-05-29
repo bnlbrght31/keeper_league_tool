@@ -91,10 +91,12 @@ def _get_weekly_scores(league_key, access_token, start_week, end_week):
                     score = float(t_stats.get("team_points", {}).get("total", 0) or 0)
                     team_data.append({"name": name, "team_key": team_key, "score": score})
 
+                is_consolation = str(m.get("is_consolation", "0")) != "0"
                 if len(team_data) == 2:
                     week_matchups.append({
                         "week": w,
                         "is_playoffs": is_playoffs,
+                        "is_consolation": is_consolation,
                         "team_a": team_data[0]["name"],
                         "key_a": team_data[0]["team_key"],
                         "score_a": team_data[0]["score"],
