@@ -5,3 +5,5 @@ __pycache__/
 keeper_overrides.csv
 .env
 yahoo_token.json
+google_credentials.json
+google_token.json

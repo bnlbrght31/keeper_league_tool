@@ -306,22 +306,25 @@ def fetch_keeper_data(league_id, season=2025):
     print("Fetching draft results...")
     current_picks = _get_draft_results(league_key, access_token)
 
-    # Keeper counts: is_keeper.kept on roster = player was kept for this season's draft
-    keeper_counts = {}
+    # Keeper counts: only count a year if the player was also kept in 2025.
+    # A 2024-only keeper who was re-drafted in 2025 should show 0, not 1.
+    keepers_2025 = set()
     for _, _, players in teams:
         for p in players:
             if p["is_keeper"].get("kept"):
-                keeper_counts[p["player_id"]] = keeper_counts.get(p["player_id"], 0) + 1
+                keepers_2025.add(p["player_id"])
 
-    # Check previous season keepers if available
+    keeper_counts = {pid: 1 for pid in keepers_2025}
+
     if prev_league_key:
         print(f"  Checking previous season ({prev_league_key}) for keeper history...")
         try:
             prev_teams = _get_all_rosters(prev_league_key, access_token)
             for _, _, players in prev_teams:
                 for p in players:
-                    if p["is_keeper"].get("kept"):
-                        keeper_counts[p["player_id"]] = keeper_counts.get(p["player_id"], 0) + 1
+                    pid = p["player_id"]
+                    if p["is_keeper"].get("kept") and pid in keepers_2025:
+                        keeper_counts[pid] = 2
         except Exception as e:
             print(f"  Could not fetch previous season rosters: {e}")
 
@@ -334,6 +337,8 @@ def fetch_keeper_data(league_id, season=2025):
         "keeper_counts": keeper_counts,
         "faab_acquisitions": faab_acquisitions,
         "is_auction": is_auction,
+        "league_name": meta.get("name", "Yahoo League"),
+        "season": season,
     }
 
 
