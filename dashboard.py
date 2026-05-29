@@ -70,6 +70,7 @@ def _compute_alltime_standings(seasons):
             po = po_record.get(t["team_key"], None)
             totals[m]["season_records"].append({
                 "season": s["season"],
+                "team_name": t["name"],
                 "wins": t["wins"],
                 "losses": t["losses"],
                 "pf": round(t["pf"], 1),
@@ -443,10 +444,14 @@ tr:hover td{{background:#1c2128}}
 
 <div id="standings" class="section active">
   <div class="filter-bar">
-    <label for="standings-filter">Show:</label>
+    <label for="standings-filter">Players:</label>
     <select id="standings-filter" onchange="renderTable()">
       <option value="all">All Players</option>
       <option value="active">Active Players</option>
+    </select>
+    <label for="season-filter" style="margin-left:12px">Season:</label>
+    <select id="season-filter" onchange="renderTable()">
+      <option value="all">All Time</option>
     </select>
   </div>
   <h2>All-Time Standings</h2>
@@ -542,6 +547,27 @@ function show(id) {{
 
 // ── Standings ──────────────────────────────────────────────────────────────
 (function buildStandings() {{
+  // Build season lookup: year → manager → season_record
+  const seasonLookup = {{}};
+  DATA.alltime.forEach(r => {{
+    r.season_records.forEach(sr => {{
+      if (!seasonLookup[sr.season]) seasonLookup[sr.season] = {{}};
+      seasonLookup[sr.season][r.manager] = {{...sr, manager: r.manager}};
+    }});
+  }});
+
+  // Populate season dropdown (most recent first, exclude seasons with no games)
+  const seasons = Object.keys(seasonLookup)
+    .map(Number)
+    .filter(y => Object.values(seasonLookup[y]).some(sr => sr.wins + sr.losses > 0))
+    .sort((a, b) => b - a);
+  const seasonSel = document.getElementById('season-filter');
+  seasons.forEach(y => {{
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    seasonSel.appendChild(opt);
+  }});
+
   let sortKey = 'win_pct', sortDir = -1;
 
   function renderExpandRow(r, ncols) {{
@@ -603,16 +629,65 @@ function show(id) {{
 
   window.renderTable = function() {{
     const flt = activeFilter('standings-filter');
-    const sorted = [...DATA.alltime]
-      .filter(r => !flt || flt.has(r.manager))
-      .sort((a, b) => {{
-        const av = a[sortKey], bv = b[sortKey];
-        return typeof av === 'string' ? av.localeCompare(bv) * sortDir : (av - bv) * sortDir;
+    const seasonVal = document.getElementById('season-filter').value;
+    const isSeason = seasonVal !== 'all';
+    const thead = document.querySelector('#standings-tbl thead tr');
+
+    if (isSeason) {{
+      // Single-season mode: swap column headers
+      thead.cells[2].textContent = 'Team';
+      thead.cells[8].textContent = 'Finish';
+      // Disable sort on those two cols
+      thead.cells[2].classList.remove('sortable');
+      thead.cells[8].classList.remove('sortable');
+
+      const srMap = seasonLookup[parseInt(seasonVal)] || {{}};
+      const rows = Object.values(srMap)
+        .filter(sr => sr.wins + sr.losses > 0)
+        .filter(sr => !flt || flt.has(sr.manager))
+        .sort((a, b) => (a.rank || 99) - (b.rank || 99) || b.pf - a.pf);
+
+      const tbody = document.querySelector('#standings-tbl tbody');
+      tbody.innerHTML = '';
+      rows.forEach((sr, i) => {{
+        const tr = document.createElement('tr');
+        function finishBadge(sr) {{
+          if (sr.champion) return '🏆';
+          if (sr.rank === 2) return '🥈';
+          if (sr.rank === 3) return '🥉';
+          return sr.rank > 0 ? '#' + sr.rank : '—';
+        }}
+        tr.innerHTML = `
+          <td class="rank">${{i + 1}}</td>
+          <td><strong>${{sr.manager}}</strong></td>
+          <td class="neutral" style="font-size:12px">${{sr.team_name}}</td>
+          <td class="win">${{sr.wins}}</td>
+          <td class="loss">${{sr.losses}}</td>
+          <td class="pct">${{(sr.wins/(sr.wins+sr.losses)*100).toFixed(1)}}%</td>
+          <td>${{sr.pf.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
+          <td class="neutral">${{sr.pa.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
+          <td>${{finishBadge(sr)}}</td>
+        `;
+        tbody.appendChild(tr);
       }});
-    const tbody = document.querySelector('#standings-tbl tbody');
-    const ncols = document.querySelectorAll('#standings-tbl thead th').length;
-    tbody.innerHTML = '';
-    sorted.forEach((r, i) => tbody.appendChild(renderRow(r, i, ncols)));
+    }} else {{
+      // All-time mode: restore column headers
+      thead.cells[2].textContent = 'Seasons';
+      thead.cells[8].textContent = 'Titles';
+      thead.cells[2].classList.add('sortable');
+      thead.cells[8].classList.add('sortable');
+
+      const sorted = [...DATA.alltime]
+        .filter(r => !flt || flt.has(r.manager))
+        .sort((a, b) => {{
+          const av = a[sortKey], bv = b[sortKey];
+          return typeof av === 'string' ? av.localeCompare(bv) * sortDir : (av - bv) * sortDir;
+        }});
+      const tbody = document.querySelector('#standings-tbl tbody');
+      const ncols = document.querySelectorAll('#standings-tbl thead th').length;
+      tbody.innerHTML = '';
+      sorted.forEach((r, i) => tbody.appendChild(renderRow(r, i, ncols)));
+    }}
   }};
 
   document.querySelectorAll('#standings-tbl th.sortable').forEach(th => {{
