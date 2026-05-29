@@ -54,6 +54,23 @@ def cmd_report(args):
         sys.exit(1)
 
 
+def cmd_dashboard(args):
+    from providers.yahoo_history import fetch_all_seasons, save_history, load_history
+    from dashboard import build_dashboard
+
+    if args.refresh or not __import__("os").path.exists(args.cache):
+        print(f"Fetching history for league {args.league_id}, season {args.season}...")
+        seasons = fetch_all_seasons(args.league_id, current_season=args.season)
+        save_history(seasons, args.cache)
+    else:
+        print(f"Loading cached history from {args.cache}...")
+        seasons = load_history(args.cache)
+
+    out = args.output
+    build_dashboard(seasons, out)
+    print(f"Dashboard written to {out}")
+
+
 def cmd_schedule(args):
     from schedule import run_scheduler
 
@@ -135,6 +152,32 @@ def main():
         help="Keeper cost formula: standard = max(draft, FAAB) with $20 waiver floor; escalate = base + max(10%%, $2)",
     )
     rp.set_defaults(func=cmd_report)
+
+    # -----------------------------------------------------------------------
+    # schedule subcommand (draft date poll)
+    # -----------------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # dashboard subcommand (league history)
+    # -----------------------------------------------------------------------
+    dp = sub.add_parser("dashboard", help="Generate a league history dashboard (static HTML)")
+    dp.add_argument("league_id", help="Yahoo league ID (numeric)")
+    dp.add_argument(
+        "--season", type=int, default=2025,
+        help="Most recent season to start the history chain from (default: 2025)",
+    )
+    dp.add_argument(
+        "--output", default="dashboard/index.html",
+        help="Output HTML file path (default: dashboard/index.html)",
+    )
+    dp.add_argument(
+        "--cache", default="lobos_history.json",
+        help="JSON cache file for raw season data (default: lobos_history.json)",
+    )
+    dp.add_argument(
+        "--refresh", action="store_true",
+        help="Re-fetch from Yahoo even if cache exists",
+    )
+    dp.set_defaults(func=cmd_dashboard)
 
     # -----------------------------------------------------------------------
     # schedule subcommand (draft date poll)

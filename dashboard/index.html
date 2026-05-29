@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>We Are The Lobos — League History</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
+header{background:linear-gradient(135deg,#1c3d5a 0%,#0d1117 100%);padding:32px 24px 24px;text-align:center;border-bottom:1px solid #21262d}
+header h1{font-size:28px;font-weight:800;letter-spacing:-.5px}
+header p{color:#8b949e;font-size:14px;margin-top:6px}
+nav{display:flex;justify-content:center;gap:4px;padding:16px 24px;border-bottom:1px solid #21262d;background:#161b22;position:sticky;top:0;z-index:10}
+.tab{padding:8px 20px;border-radius:6px;border:1px solid transparent;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:#8b949e;transition:all .15s}
+.tab:hover{background:#21262d;color:#e6edf3}
+.tab.active{background:#1c3d5a;border-color:#1f6feb;color:#58a6ff}
+.section{display:none;max-width:1100px;margin:0 auto;padding:32px 24px}
+.section.active{display:block}
+h2{font-size:20px;font-weight:700;margin-bottom:20px;color:#f0f6fc}
+.card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:20px;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px 12px;border-bottom:2px solid #21262d;color:#8b949e;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid #21262d}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1c2128}
+.rank{color:#8b949e;font-size:13px;width:32px}
+.champion-badge{display:inline-block;background:#b8860b;color:#fff9c4;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:6px}
+.win{color:#3fb950}
+.loss{color:#f85149}
+.neutral{color:#8b949e}
+.pct{font-variant-numeric:tabular-nums}
+.champ-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.champ-card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:18px;transition:transform .15s}
+.champ-card:hover{transform:translateY(-2px)}
+.champ-year{font-size:13px;color:#8b949e;margin-bottom:4px}
+.champ-manager{font-size:18px;font-weight:800;color:#f0f6fc;margin-bottom:2px}
+.champ-team{font-size:13px;color:#58a6ff;margin-bottom:8px}
+.champ-record{font-size:13px;color:#8b949e}
+/* H2H matrix */
+.matrix-wrap{overflow-x:auto}
+.matrix{border-collapse:collapse;font-size:12px;white-space:nowrap}
+.matrix th,.matrix td{padding:6px 8px;border:1px solid #21262d;text-align:center}
+.matrix th{background:#161b22;color:#8b949e;font-weight:600}
+.matrix .row-label{text-align:right;font-weight:600;color:#e6edf3;background:#161b22;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.matrix td.self{background:#0d1117}
+.matrix td.dominant{background:#1a3a1e;color:#3fb950}
+.matrix td.winning{background:#1a2a1e;color:#3fb950}
+.matrix td.even{background:#1c2128;color:#8b949e}
+.matrix td.losing{background:#2a1a1a;color:#f85149}
+.matrix td.dominated{background:#3a1a1a;color:#f85149}
+/* Records grid */
+.records-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.rec-card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:18px}
+.rec-label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;margin-bottom:8px;font-weight:600}
+.rec-value{font-size:26px;font-weight:800;color:#f0f6fc;margin-bottom:4px}
+.rec-sub{font-size:13px;color:#58a6ff}
+.rec-detail{font-size:12px;color:#8b949e;margin-top:4px}
+.nemesis-row td:first-child{font-weight:600;color:#e6edf3}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏈 We Are The Lobos</h1>
+  <p>League History · 2010–2026</p>
+</header>
+<nav>
+  <button class="tab active" onclick="show('standings')">All-Time Standings</button>
+  <button class="tab" onclick="show('champions')">Champions</button>
+  <button class="tab" onclick="show('h2h')">Head-to-Head</button>
+  <button class="tab" onclick="show('records')">Records</button>
+</nav>
+
+<div id="standings" class="section active">
+  <h2>All-Time Standings</h2>
+  <div class="card">
+    <table id="standings-tbl">
+      <thead><tr>
+        <th></th><th>Manager</th><th>Seasons</th>
+        <th>W</th><th>L</th><th>Win%</th>
+        <th>PF</th><th>PA</th><th>Titles</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="champions" class="section">
+  <h2>Hall of Champions</h2>
+  <div class="champ-grid" id="champ-grid"></div>
+</div>
+
+<div id="h2h" class="section">
+  <h2>Head-to-Head Records</h2>
+  <div class="card matrix-wrap">
+    <table class="matrix" id="h2h-tbl"></table>
+  </div>
+  <h2 style="margin-top:32px">Nemesis Report</h2>
+  <div class="card">
+    <table id="nemesis-tbl">
+      <thead><tr><th>Manager</th><th>Nemesis</th><th>Record vs Nemesis</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="records" class="section">
+  <h2>Records &amp; Milestones</h2>
+  <div class="records-grid" id="records-grid"></div>
+</div>
+
+<script>
+const DATA = {"alltime":[{"manager":"KeithC","wins":94,"losses":56,"ties":0,"pf":17372.6,"pa":16134.5,"seasons":12,"titles":3,"win_pct":0.627,"rank":1},{"manager":"Jamison","wins":8,"losses":5,"ties":0,"pf":1702.8,"pa":1576.2,"seasons":2,"titles":0,"win_pct":0.615,"rank":2},{"manager":"Ryan","wins":8,"losses":5,"ties":0,"pf":1537.6,"pa":1419.6,"seasons":2,"titles":0,"win_pct":0.615,"rank":3},{"manager":"Brandon","wins":113,"losses":93,"ties":0,"pf":22407.3,"pa":22075.4,"seasons":16,"titles":2,"win_pct":0.549,"rank":4},{"manager":"Ken","wins":118,"losses":102,"ties":0,"pf":24486.8,"pa":23468.3,"seasons":17,"titles":1,"win_pct":0.536,"rank":5},{"manager":"Keith","wins":117,"losses":103,"ties":0,"pf":24271.7,"pa":23485.0,"seasons":17,"titles":3,"win_pct":0.532,"rank":6},{"manager":"joshua.e.strong","wins":57,"losses":51,"ties":0,"pf":12723.1,"pa":12809.1,"seasons":9,"titles":0,"win_pct":0.528,"rank":7},{"manager":"Alexander Micael","wins":86,"losses":79,"ties":0,"pf":17587.5,"pa":17659.3,"seasons":12,"titles":0,"win_pct":0.521,"rank":8},{"manager":"BTFD","wins":107,"losses":99,"ties":0,"pf":22573.9,"pa":22290.7,"seasons":16,"titles":0,"win_pct":0.519,"rank":9},{"manager":"Erin Marrujo","wins":28,"losses":27,"ties":0,"pf":7038.1,"pa":6894.7,"seasons":5,"titles":1,"win_pct":0.509,"rank":10},{"manager":"Chris","wins":109,"losses":111,"ties":0,"pf":22923.8,"pa":23228.3,"seasons":17,"titles":0,"win_pct":0.495,"rank":11},{"manager":"brandon","wins":102,"losses":104,"ties":0,"pf":22034.1,"pa":22359.4,"seasons":16,"titles":1,"win_pct":0.495,"rank":12},{"manager":"Ben A","wins":108,"losses":112,"ties":0,"pf":23764.2,"pa":23585.8,"seasons":17,"titles":3,"win_pct":0.491,"rank":13},{"manager":"Potential","wins":107,"losses":113,"ties":0,"pf":23834.8,"pa":24235.3,"seasons":17,"titles":1,"win_pct":0.486,"rank":14},{"manager":"--hidden--","wins":33,"losses":37,"ties":0,"pf":7085.5,"pa":6966.9,"seasons":5,"titles":0,"win_pct":0.471,"rank":15},{"manager":"Tim R","wins":42,"losses":56,"ties":0,"pf":8910.3,"pa":9763.5,"seasons":7,"titles":1,"win_pct":0.429,"rank":16},{"manager":"Tikki","wins":27,"losses":42,"ties":0,"pf":7252.4,"pa":7595.3,"seasons":6,"titles":0,"win_pct":0.391,"rank":17},{"manager":"A.I.","wins":52,"losses":113,"ties":0,"pf":15009.9,"pa":16709.8,"seasons":12,"titles":0,"win_pct":0.315,"rank":18},{"manager":"Attila","wins":3,"losses":11,"ties":0,"pf":1137.2,"pa":1396.3,"seasons":1,"titles":0,"win_pct":0.214,"rank":19}],"champions":[{"season":2025,"manager":"KeithC","team_name":"Yours Truly","wins":10,"losses":3,"pf":1690.88},{"season":2024,"manager":"Keith","team_name":"AWell-TrainedDonkeyOnXmasEve","wins":11,"losses":3,"pf":2062.78},{"season":2023,"manager":"Ken","team_name":"Bigger K","wins":10,"losses":4,"pf":1964.88},{"season":2022,"manager":"Erin Marrujo","team_name":"Not Honeybadger","wins":7,"losses":7,"pf":1857.64},{"season":2021,"manager":"Potential","team_name":"DaCheetah Show","wins":9,"losses":5,"pf":1771.24},{"season":2020,"manager":"KeithC","team_name":"Yours Truly","wins":9,"losses":4,"pf":1536.14},{"season":2019,"manager":"Ben A","team_name":"Ben's Lobos","wins":9,"losses":4,"pf":1336.82},{"season":2018,"manager":"Ben A","team_name":"Ben's Lobos","wins":7,"losses":6,"pf":1359.0},{"season":2017,"manager":"Keith","team_name":"\u00a1Mantequilla!","wins":8,"losses":6,"pf":1337.0},{"season":2016,"manager":"Ben A","team_name":"Ben's Lobos","wins":9,"losses":5,"pf":1508.98},{"season":2015,"manager":"KeithC","team_name":"Crushville Fistbombs","wins":9,"losses":5,"pf":1583.82},{"season":2014,"manager":"Brandon","team_name":"Brandon'sGiants","wins":8,"losses":6,"pf":1496.34},{"season":2013,"manager":"brandon","team_name":"STAT","wins":9,"losses":5,"pf":1508.56},{"season":2012,"manager":"Tim R","team_name":"Leinart's Beer Bongs","wins":9,"losses":5,"pf":1375.64},{"season":2011,"manager":"Brandon","team_name":"Brandon'sGiants","wins":8,"losses":6,"pf":1371.86},{"season":2010,"manager":"Keith","team_name":"DVDA","wins":10,"losses":4,"pf":1637.66}],"h2h":{"managers":["Ben A","brandon","Chris","KeithC","Ken","Tikki","Erin Marrujo","Brandon","Potential","Keith","BTFD","joshua.e.strong","Ryan","Jamison","Alexander Micael","A.I.","Attila","Tim R","--hidden--"],"matrix":{"Ben A":{"brandon":{"wins":11,"losses":8},"Chris":{"wins":10,"losses":10},"KeithC":{"wins":5,"losses":10},"Ken":{"wins":8,"losses":16},"Tikki":{"wins":3,"losses":3},"Erin Marrujo":{"wins":2,"losses":4},"Brandon":{"wins":11,"losses":7},"Potential":{"wins":10,"losses":10},"Keith":{"wins":11,"losses":10},"BTFD":{"wins":8,"losses":11},"joshua.e.strong":{"wins":3,"losses":4},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":8,"losses":7},"A.I.":{"wins":10,"losses":4},"Attila":{"wins":1,"losses":0},"Tim R":{"wins":4,"losses":3},"--hidden--":{"wins":3,"losses":3}},"brandon":{"Ben A":{"wins":8,"losses":11},"Chris":{"wins":11,"losses":7},"KeithC":{"wins":5,"losses":11},"Ken":{"wins":7,"losses":12},"Tikki":{"wins":3,"losses":1},"Erin Marrujo":{"wins":4,"losses":1},"Brandon":{"wins":7,"losses":9},"Potential":{"wins":8,"losses":10},"Keith":{"wins":8,"losses":9},"BTFD":{"wins":8,"losses":10},"joshua.e.strong":{"wins":5,"losses":4},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":5,"losses":9},"A.I.":{"wins":13,"losses":4},"Attila":{"wins":1,"losses":0},"Tim R":{"wins":4,"losses":3},"--hidden--":{"wins":5,"losses":1}},"Chris":{"Ben A":{"wins":10,"losses":10},"brandon":{"wins":7,"losses":11},"KeithC":{"wins":8,"losses":4},"Ken":{"wins":10,"losses":10},"Tikki":{"wins":4,"losses":3},"Erin Marrujo":{"wins":2,"losses":2},"Brandon":{"wins":9,"losses":9},"Potential":{"wins":8,"losses":15},"Keith":{"wins":12,"losses":6},"BTFD":{"wins":9,"losses":10},"joshua.e.strong":{"wins":3,"losses":6},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":1,"losses":0},"Alexander Micael":{"wins":11,"losses":8},"A.I.":{"wins":9,"losses":6},"Attila":{"wins":2,"losses":0},"Tim R":{"wins":3,"losses":5},"--hidden--":{"wins":1,"losses":5}},"KeithC":{"Ben A":{"wins":10,"losses":5},"brandon":{"wins":11,"losses":5},"Chris":{"wins":4,"losses":8},"Ken":{"wins":10,"losses":4},"Tikki":{"wins":1,"losses":0},"Erin Marrujo":{"wins":2,"losses":4},"Brandon":{"wins":7,"losses":7},"Potential":{"wins":9,"losses":4},"Keith":{"wins":10,"losses":6},"BTFD":{"wins":5,"losses":4},"joshua.e.strong":{"wins":6,"losses":2},"Ryan":{"wins":1,"losses":0},"Jamison":{"wins":1,"losses":0},"Alexander Micael":{"wins":8,"losses":3},"A.I.":{"wins":8,"losses":2},"Attila":{"wins":0,"losses":1},"Tim R":{"wins":1,"losses":1},"--hidden--":{"wins":0,"losses":0}},"Ken":{"Ben A":{"wins":16,"losses":8},"brandon":{"wins":12,"losses":7},"Chris":{"wins":10,"losses":10},"KeithC":{"wins":4,"losses":10},"Tikki":{"wins":5,"losses":1},"Erin Marrujo":{"wins":3,"losses":1},"Brandon":{"wins":3,"losses":15},"Potential":{"wins":12,"losses":9},"Keith":{"wins":8,"losses":11},"BTFD":{"wins":11,"losses":10},"joshua.e.strong":{"wins":5,"losses":5},"Ryan":{"wins":1,"losses":0},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":8,"losses":3},"A.I.":{"wins":9,"losses":4},"Attila":{"wins":1,"losses":0},"Tim R":{"wins":6,"losses":4},"--hidden--":{"wins":4,"losses":3}},"Tikki":{"Ben A":{"wins":3,"losses":3},"brandon":{"wins":1,"losses":3},"Chris":{"wins":3,"losses":4},"KeithC":{"wins":0,"losses":1},"Ken":{"wins":1,"losses":5},"Erin Marrujo":{"wins":0,"losses":1},"Brandon":{"wins":2,"losses":3},"Potential":{"wins":3,"losses":4},"Keith":{"wins":2,"losses":5},"BTFD":{"wins":2,"losses":2},"joshua.e.strong":{"wins":0,"losses":1},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":1,"losses":0},"Alexander Micael":{"wins":1,"losses":1},"A.I.":{"wins":3,"losses":1},"Attila":{"wins":0,"losses":0},"Tim R":{"wins":2,"losses":4},"--hidden--":{"wins":3,"losses":3}},"Erin Marrujo":{"Ben A":{"wins":4,"losses":2},"brandon":{"wins":1,"losses":4},"Chris":{"wins":2,"losses":2},"KeithC":{"wins":4,"losses":2},"Ken":{"wins":1,"losses":3},"Tikki":{"wins":1,"losses":0},"Brandon":{"wins":3,"losses":1},"Potential":{"wins":2,"losses":2},"Keith":{"wins":2,"losses":5},"BTFD":{"wins":2,"losses":3},"joshua.e.strong":{"wins":3,"losses":1},"Ryan":{"wins":1,"losses":0},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":2,"losses":1},"A.I.":{"wins":0,"losses":0},"Attila":{"wins":0,"losses":0},"Tim R":{"wins":0,"losses":0},"--hidden--":{"wins":0,"losses":0}},"Brandon":{"Ben A":{"wins":7,"losses":11},"brandon":{"wins":9,"losses":7},"Chris":{"wins":9,"losses":9},"KeithC":{"wins":7,"losses":7},"Ken":{"wins":15,"losses":3},"Tikki":{"wins":3,"losses":2},"Erin Marrujo":{"wins":1,"losses":3},"Potential":{"wins":10,"losses":8},"Keith":{"wins":6,"losses":12},"BTFD":{"wins":11,"losses":8},"joshua.e.strong":{"wins":5,"losses":5},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":9,"losses":7},"A.I.":{"wins":10,"losses":4},"Attila":{"wins":1,"losses":0},"Tim R":{"wins":6,"losses":3},"--hidden--":{"wins":4,"losses":2}},"Potential":{"Ben A":{"wins":10,"losses":10},"brandon":{"wins":10,"losses":8},"Chris":{"wins":15,"losses":8},"KeithC":{"wins":4,"losses":9},"Ken":{"wins":9,"losses":12},"Tikki":{"wins":4,"losses":3},"Erin Marrujo":{"wins":2,"losses":2},"Brandon":{"wins":8,"losses":10},"Keith":{"wins":12,"losses":8},"BTFD":{"wins":8,"losses":11},"joshua.e.strong":{"wins":6,"losses":8},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":6,"losses":6},"A.I.":{"wins":6,"losses":8},"Attila":{"wins":0,"losses":1},"Tim R":{"wins":6,"losses":3},"--hidden--":{"wins":1,"losses":4}},"Keith":{"Ben A":{"wins":10,"losses":11},"brandon":{"wins":9,"losses":8},"Chris":{"wins":6,"losses":12},"KeithC":{"wins":6,"losses":10},"Ken":{"wins":11,"losses":8},"Tikki":{"wins":5,"losses":2},"Erin Marrujo":{"wins":5,"losses":2},"Brandon":{"wins":12,"losses":6},"Potential":{"wins":8,"losses":12},"BTFD":{"wins":10,"losses":8},"joshua.e.strong":{"wins":3,"losses":6},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":4,"losses":9},"A.I.":{"wins":17,"losses":2},"Attila":{"wins":1,"losses":1},"Tim R":{"wins":6,"losses":2},"--hidden--":{"wins":4,"losses":2}},"BTFD":{"Ben A":{"wins":11,"losses":8},"brandon":{"wins":10,"losses":8},"Chris":{"wins":10,"losses":9},"KeithC":{"wins":4,"losses":5},"Ken":{"wins":10,"losses":11},"Tikki":{"wins":2,"losses":2},"Erin Marrujo":{"wins":3,"losses":2},"Brandon":{"wins":8,"losses":11},"Potential":{"wins":11,"losses":8},"Keith":{"wins":8,"losses":10},"joshua.e.strong":{"wins":5,"losses":4},"Ryan":{"wins":0,"losses":1},"Jamison":{"wins":1,"losses":0},"Alexander Micael":{"wins":7,"losses":8},"A.I.":{"wins":8,"losses":8},"Attila":{"wins":2,"losses":0},"Tim R":{"wins":6,"losses":1},"--hidden--":{"wins":1,"losses":3}},"joshua.e.strong":{"Ben A":{"wins":4,"losses":3},"brandon":{"wins":4,"losses":5},"Chris":{"wins":6,"losses":3},"KeithC":{"wins":2,"losses":6},"Ken":{"wins":5,"losses":5},"Tikki":{"wins":1,"losses":0},"Erin Marrujo":{"wins":1,"losses":3},"Brandon":{"wins":5,"losses":5},"Potential":{"wins":8,"losses":6},"Keith":{"wins":6,"losses":3},"BTFD":{"wins":4,"losses":5},"Ryan":{"wins":1,"losses":0},"Jamison":{"wins":1,"losses":0},"Alexander Micael":{"wins":6,"losses":7},"A.I.":{"wins":3,"losses":0},"Attila":{"wins":0,"losses":0},"Tim R":{"wins":0,"losses":0},"--hidden--":{"wins":0,"losses":0}},"Ryan":{"Ben A":{"wins":1,"losses":0},"brandon":{"wins":1,"losses":0},"Chris":{"wins":1,"losses":0},"KeithC":{"wins":0,"losses":1},"Ken":{"wins":0,"losses":1},"Tikki":{"wins":1,"losses":0},"Erin Marrujo":{"wins":0,"losses":1},"Brandon":{"wins":1,"losses":0},"Potential":{"wins":1,"losses":0},"Keith":{"wins":1,"losses":0},"BTFD":{"wins":1,"losses":0},"joshua.e.strong":{"wins":0,"losses":1},"Jamison":{"wins":0,"losses":1},"Alexander Micael":{"wins":0,"losses":0},"A.I.":{"wins":0,"losses":0},"Attila":{"wins":0,"losses":0},"Tim R":{"wins":0,"losses":0},"--hidden--":{"wins":0,"losses":0}},"Jamison":{"Ben A":{"wins":1,"losses":0},"brandon":{"wins":1,"losses":0},"Chris":{"wins":0,"losses":1},"KeithC":{"wins":0,"losses":1},"Ken":{"wins":1,"losses":0},"Tikki":{"wins":0,"losses":1},"Erin Marrujo":{"wins":1,"losses":0},"Brandon":{"wins":1,"losses":0},"Potential":{"wins":1,"losses":0},"Keith":{"wins":1,"losses":0},"BTFD":{"wins":0,"losses":1},"joshua.e.strong":{"wins":0,"losses":1},"Ryan":{"wins":1,"losses":0},"Alexander Micael":{"wins":0,"losses":0},"A.I.":{"wins":0,"losses":0},"Attila":{"wins":0,"losses":0},"Tim R":{"wins":0,"losses":0},"--hidden--":{"wins":0,"losses":0}},"Alexander Micael":{"Ben A":{"wins":7,"losses":8},"brandon":{"wins":9,"losses":5},"Chris":{"wins":8,"losses":11},"KeithC":{"wins":3,"losses":8},"Ken":{"wins":3,"losses":8},"Tikki":{"wins":1,"losses":1},"Erin Marrujo":{"wins":1,"losses":2},"Brandon":{"wins":7,"losses":9},"Potential":{"wins":6,"losses":6},"Keith":{"wins":9,"losses":4},"BTFD":{"wins":8,"losses":7},"joshua.e.strong":{"wins":7,"losses":6},"Ryan":{"wins":0,"losses":0},"Jamison":{"wins":0,"losses":0},"A.I.":{"wins":7,"losses":3},"Attila":{"wins":1,"losses":0},"Tim R":{"wins":6,"losses":1},"--hidden--":{"wins":3,"losses":0}},"A.I.":{"Ben A":{"wins":4,"losses":10},"brandon":{"wins":4,"losses":13},"Chris":{"wins":6,"losses":9},"KeithC":{"wins":2,"losses":8},"Ken":{"wins":4,"losses":9},"Tikki":{"wins":1,"losses":3},"Erin Marrujo":{"wins":0,"losses":0},"Brandon":{"wins":4,"losses":10},"Potential":{"wins":8,"losses":6},"Keith":{"wins":2,"losses":17},"BTFD":{"wins":8,"losses":8},"joshua.e.strong":{"wins":0,"losses":3},"Ryan":{"wins":0,"losses":0},"Jamison":{"wins":0,"losses":0},"Alexander Micael":{"wins":3,"losses":7},"Attila":{"wins":1,"losses":0},"Tim R":{"wins":3,"losses":6},"--hidden--":{"wins":2,"losses":4}},"Attila":{"Ben A":{"wins":0,"losses":1},"brandon":{"wins":0,"losses":1},"Chris":{"wins":0,"losses":2},"KeithC":{"wins":1,"losses":0},"Ken":{"wins":0,"losses":1},"Tikki":{"wins":0,"losses":0},"Erin Marrujo":{"wins":0,"losses":0},"Brandon":{"wins":0,"losses":1},"Potential":{"wins":1,"losses":0},"Keith":{"wins":1,"losses":1},"BTFD":{"wins":0,"losses":2},"joshua.e.strong":{"wins":0,"losses":0},"Ryan":{"wins":0,"losses":0},"Jamison":{"wins":0,"losses":0},"Alexander Micael":{"wins":0,"losses":1},"A.I.":{"wins":0,"losses":1},"Tim R":{"wins":0,"losses":0},"--hidden--":{"wins":0,"losses":0}},"Tim R":{"Ben A":{"wins":3,"losses":4},"brandon":{"wins":3,"losses":4},"Chris":{"wins":5,"losses":3},"KeithC":{"wins":1,"losses":1},"Ken":{"wins":4,"losses":6},"Tikki":{"wins":4,"losses":2},"Erin Marrujo":{"wins":0,"losses":0},"Brandon":{"wins":3,"losses":6},"Potential":{"wins":3,"losses":6},"Keith":{"wins":2,"losses":6},"BTFD":{"wins":1,"losses":6},"joshua.e.strong":{"wins":0,"losses":0},"Ryan":{"wins":0,"losses":0},"Jamison":{"wins":0,"losses":0},"Alexander Micael":{"wins":1,"losses":6},"A.I.":{"wins":6,"losses":3},"Attila":{"wins":0,"losses":0},"--hidden--":{"wins":6,"losses":3}},"--hidden--":{"Ben A":{"wins":3,"losses":3},"brandon":{"wins":1,"losses":5},"Chris":{"wins":5,"losses":1},"KeithC":{"wins":0,"losses":0},"Ken":{"wins":3,"losses":4},"Tikki":{"wins":3,"losses":3},"Erin Marrujo":{"wins":0,"losses":0},"Brandon":{"wins":2,"losses":4},"Potential":{"wins":4,"losses":1},"Keith":{"wins":2,"losses":4},"BTFD":{"wins":3,"losses":1},"joshua.e.strong":{"wins":0,"losses":0},"Ryan":{"wins":0,"losses":0},"Jamison":{"wins":0,"losses":0},"Alexander Micael":{"wins":0,"losses":3},"A.I.":{"wins":4,"losses":2},"Attila":{"wins":0,"losses":0},"Tim R":{"wins":3,"losses":6}}},"nemeses":{"Ben A":{"nemesis":"KeithC","win_pct":0.333},"brandon":{"nemesis":"KeithC","win_pct":0.312},"Chris":{"nemesis":"--hidden--","win_pct":0.167},"KeithC":{"nemesis":"Chris","win_pct":0.333},"Ken":{"nemesis":"Brandon","win_pct":0.167},"Tikki":{"nemesis":"Ken","win_pct":0.167},"Erin Marrujo":{"nemesis":"brandon","win_pct":0.2},"Brandon":{"nemesis":"Erin Marrujo","win_pct":0.25},"Potential":{"nemesis":"--hidden--","win_pct":0.2},"Keith":{"nemesis":"Alexander Micael","win_pct":0.308},"BTFD":{"nemesis":"--hidden--","win_pct":0.25},"joshua.e.strong":{"nemesis":"KeithC","win_pct":0.25},"Ryan":{"nemesis":null,"win_pct":null},"Jamison":{"nemesis":null,"win_pct":null},"Alexander Micael":{"nemesis":"KeithC","win_pct":0.273},"A.I.":{"nemesis":"joshua.e.strong","win_pct":0.0},"Attila":{"nemesis":null,"win_pct":null},"Tim R":{"nemesis":"BTFD","win_pct":0.143},"--hidden--":{"nemesis":"Alexander Micael","win_pct":0.0}}},"records":{"high_week":{"score":209.66,"manager":"joshua.e.strong","team":"Josh's Lobos","season":2023,"week":3},"low_week":{"score":30.96,"manager":"brandon","team":"Brandon's Lobos","season":2020,"week":9},"blowout":{"margin":118.24,"winner":"Brandon","winner_team":"Brandon'sGiants","loser":"Tim R","loser_team":"Leinart's Beer Bongs","score_w":179.14,"score_l":60.9,"season":2014,"week":13},"closest":{"margin":0.02,"winner":"Brandon","winner_team":"Killer Giants","loser":"BTFD","loser_team":"Navidinomenon","score_w":142.48,"score_l":142.46,"season":2024,"week":5},"best_season":{"manager":"KeithC","team":"Yours Truly","wins":12,"losses":2,"pf":1958.06,"win_pct":0.857,"season":2023},"worst_season":{"manager":"A.I.","team":"Honeybadger","wins":1,"losses":12,"pf":1108.3,"win_pct":0.077,"season":2020},"streaks":{"win":{"manager":"KeithC","length":20},"loss":{"manager":"A.I.","length":13}}}};
+
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Standings ──────────────────────────────────────────────────────────────
+(function buildStandings() {
+  const tbody = document.querySelector('#standings-tbl tbody');
+  DATA.alltime.forEach(r => {
+    const tr = document.createElement('tr');
+    const trophy = r.titles > 0 ? ` <span style="color:#ffd700">${'🏆'.repeat(r.titles)}</span>` : '';
+    tr.innerHTML = `
+      <td class="rank">${r.rank}</td>
+      <td><strong>${r.manager}</strong>${trophy}</td>
+      <td class="neutral">${r.seasons}</td>
+      <td class="win">${r.wins}</td>
+      <td class="loss">${r.losses}</td>
+      <td class="pct">${(r.win_pct*100).toFixed(1)}%</td>
+      <td>${r.pf.toFixed(1)}</td>
+      <td class="neutral">${r.pa.toFixed(1)}</td>
+      <td>${r.titles > 0 ? r.titles : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+})();
+
+// ── Champions ──────────────────────────────────────────────────────────────
+(function buildChampions() {
+  const grid = document.getElementById('champ-grid');
+  DATA.champions.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'champ-card';
+    div.innerHTML = `
+      <div class="champ-year">🏆 ${c.season} Champion</div>
+      <div class="champ-manager">${c.manager}</div>
+      <div class="champ-team">${c.team_name}</div>
+      <div class="champ-record">${c.wins}–${c.losses} &nbsp;·&nbsp; ${c.pf.toFixed(1)} pts</div>
+    `;
+    grid.appendChild(div);
+  });
+})();
+
+// ── Head-to-Head ───────────────────────────────────────────────────────────
+(function buildH2H() {
+  const {managers, matrix, nemeses} = DATA.h2h;
+  const tbl = document.getElementById('h2h-tbl');
+
+  // Header row
+  const hdr = document.createElement('tr');
+  hdr.innerHTML = '<th></th>' + managers.map(m => `<th title="${m}">${m.split(' ')[0]}</th>`).join('');
+  tbl.appendChild(hdr);
+
+  managers.forEach(row => {
+    const tr = document.createElement('tr');
+    let cells = `<td class="row-label" title="${row}">${row}</td>`;
+    managers.forEach(col => {
+      if (row === col) { cells += '<td class="self">·</td>'; return; }
+      const rec = matrix[row][col];
+      const w = rec.wins, l = rec.losses, tot = w + l;
+      if (tot === 0) { cells += '<td class="even">—</td>'; return; }
+      const pct = w / tot;
+      let cls = 'even';
+      if (pct >= .7) cls = 'dominant';
+      else if (pct > .5) cls = 'winning';
+      else if (pct <= .3) cls = 'dominated';
+      else if (pct < .5) cls = 'losing';
+      cells += `<td class="${cls}" title="${row} vs ${col}: ${w}-${l}">${w}-${l}</td>`;
+    });
+    tr.innerHTML = cells;
+    tbl.appendChild(tr);
+  });
+
+  // Nemesis table
+  const ntbody = document.querySelector('#nemesis-tbl tbody');
+  managers.forEach(m => {
+    const n = nemeses[m];
+    if (!n.nemesis) return;
+    const rec = matrix[m][n.nemesis];
+    const tr = document.createElement('tr');
+    tr.className = 'nemesis-row';
+    tr.innerHTML = `
+      <td>${m}</td>
+      <td style="color:#f85149">${n.nemesis}</td>
+      <td class="loss">${rec.wins}–${rec.losses} (${(n.win_pct*100).toFixed(0)}% win rate)</td>
+    `;
+    ntbody.appendChild(tr);
+  });
+})();
+
+// ── Records ────────────────────────────────────────────────────────────────
+(function buildRecords() {
+  const rec = DATA.records;
+  const grid = document.getElementById('records-grid');
+
+  function card(label, value, sub, detail) {
+    const d = document.createElement('div');
+    d.className = 'rec-card';
+    d.innerHTML = `
+      <div class="rec-label">${label}</div>
+      <div class="rec-value">${value}</div>
+      ${sub ? `<div class="rec-sub">${sub}</div>` : ''}
+      ${detail ? `<div class="rec-detail">${detail}</div>` : ''}
+    `;
+    grid.appendChild(d);
+  }
+
+  if (rec.high_week) {
+    const h = rec.high_week;
+    card('Highest Single-Week Score', h.score.toFixed(2) + ' pts',
+      h.manager, `${h.team} · Week ${h.week}, ${h.season}`);
+  }
+  if (rec.low_week) {
+    const l = rec.low_week;
+    card('Lowest Single-Week Score', l.score.toFixed(2) + ' pts',
+      l.manager, `${l.team} · Week ${l.week}, ${l.season}`);
+  }
+  if (rec.blowout) {
+    const b = rec.blowout;
+    card('Biggest Blowout', '+' + b.margin.toFixed(2) + ' margin',
+      b.winner + ' def. ' + b.loser,
+      `${b.score_w.toFixed(2)}–${b.score_l.toFixed(2)} · Week ${b.week}, ${b.season}`);
+  }
+  if (rec.closest) {
+    const c = rec.closest;
+    card('Closest Game', c.margin.toFixed(2) + ' margin',
+      c.winner + ' def. ' + c.loser,
+      `${c.score_w.toFixed(2)}–${c.score_l.toFixed(2)} · Week ${c.week}, ${c.season}`);
+  }
+  if (rec.best_season) {
+    const b = rec.best_season;
+    card('Best Single Season', b.wins + '–' + b.losses,
+      b.manager, `${b.team} · ${b.season} · ${b.pf.toFixed(1)} pts`);
+  }
+  if (rec.worst_season) {
+    const w = rec.worst_season;
+    card('Worst Single Season', w.wins + '–' + w.losses,
+      w.manager, `${w.team} · ${w.season} · ${w.pf.toFixed(1)} pts`);
+  }
+  if (rec.streaks.win.manager) {
+    const s = rec.streaks.win;
+    card('Longest Win Streak', s.length + ' wins', s.manager);
+  }
+  if (rec.streaks.loss.manager) {
+    const s = rec.streaks.loss;
+    card('Longest Losing Streak', s.length + ' losses', s.manager);
+  }
+})();
+</script>
+</body>
+</html>
