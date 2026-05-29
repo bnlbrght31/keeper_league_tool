@@ -20,6 +20,10 @@ h2{font-size:20px;font-weight:700;margin-bottom:20px;color:#f0f6fc}
 .card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:20px;margin-bottom:20px}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;padding:10px 12px;border-bottom:2px solid #21262d;color:#8b949e;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:#e6edf3}
+th.sort-asc::after{content:' ▲';font-size:10px}
+th.sort-desc::after{content:' ▼';font-size:10px}
 td{padding:10px 12px;border-bottom:1px solid #21262d}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#1c2128}
@@ -75,9 +79,15 @@ tr:hover td{background:#1c2128}
   <div class="card">
     <table id="standings-tbl">
       <thead><tr>
-        <th></th><th>Manager</th><th>Seasons</th>
-        <th>W</th><th>L</th><th>Win%</th>
-        <th>PF</th><th>PA</th><th>Titles</th>
+        <th></th>
+        <th class="sortable" data-key="manager" data-type="str">Manager</th>
+        <th class="sortable" data-key="seasons" data-type="num">Seasons</th>
+        <th class="sortable" data-key="wins" data-type="num">W</th>
+        <th class="sortable" data-key="losses" data-type="num">L</th>
+        <th class="sortable sort-desc" data-key="win_pct" data-type="num">Win%</th>
+        <th class="sortable" data-key="pf" data-type="num">PF</th>
+        <th class="sortable" data-key="pa" data-type="num">PA</th>
+        <th class="sortable" data-key="titles" data-type="num">Titles</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -120,23 +130,47 @@ function show(id) {
 
 // ── Standings ──────────────────────────────────────────────────────────────
 (function buildStandings() {
-  const tbody = document.querySelector('#standings-tbl tbody');
-  DATA.alltime.forEach(r => {
+  let sortKey = 'win_pct', sortDir = -1;
+
+  function renderRow(r, i) {
     const tr = document.createElement('tr');
     const trophy = r.titles > 0 ? ` <span style="color:#ffd700">${'🏆'.repeat(r.titles)}</span>` : '';
     tr.innerHTML = `
-      <td class="rank">${r.rank}</td>
+      <td class="rank">${i + 1}</td>
       <td><strong>${r.manager}</strong>${trophy}</td>
       <td class="neutral">${r.seasons}</td>
       <td class="win">${r.wins}</td>
       <td class="loss">${r.losses}</td>
       <td class="pct">${(r.win_pct*100).toFixed(1)}%</td>
-      <td>${r.pf.toFixed(1)}</td>
-      <td class="neutral">${r.pa.toFixed(1)}</td>
+      <td>${r.pf.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+      <td class="neutral">${r.pa.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
       <td>${r.titles > 0 ? r.titles : '—'}</td>
     `;
-    tbody.appendChild(tr);
+    return tr;
+  }
+
+  function renderTable() {
+    const sorted = [...DATA.alltime].sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      return typeof av === 'string' ? av.localeCompare(bv) * sortDir : (av - bv) * sortDir;
+    });
+    const tbody = document.querySelector('#standings-tbl tbody');
+    tbody.innerHTML = '';
+    sorted.forEach((r, i) => tbody.appendChild(renderRow(r, i)));
+  }
+
+  document.querySelectorAll('#standings-tbl th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (sortKey === key) { sortDir *= -1; }
+      else { sortKey = key; sortDir = key === 'manager' ? 1 : -1; }
+      document.querySelectorAll('#standings-tbl th').forEach(t => t.classList.remove('sort-asc','sort-desc'));
+      th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+      renderTable();
+    });
   });
+
+  renderTable();
 })();
 
 // ── Champions ──────────────────────────────────────────────────────────────
