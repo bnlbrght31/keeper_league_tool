@@ -56,18 +56,27 @@ def cmd_report(args):
 
 def cmd_dashboard(args):
     import os
-    from providers.yahoo_history import fetch_all_seasons, save_history, load_history
     from dashboard import build_dashboard
 
     cache = args.cache or f"{args.slug}_history.json"
     output = args.output or f"docs/{args.slug}/index.html"
 
     if args.refresh or not os.path.exists(cache):
-        print(f"Fetching history for league {args.league_id}, season {args.season}...")
-        seasons = fetch_all_seasons(args.league_id, current_season=args.season)
+        if args.provider == "sleeper":
+            from providers.sleeper_history import fetch_all_seasons, save_history, load_history
+            print(f"Fetching Sleeper history for league {args.league_id}...")
+            seasons = fetch_all_seasons(args.league_id)
+        else:
+            from providers.yahoo_history import fetch_all_seasons, save_history, load_history
+            print(f"Fetching Yahoo history for league {args.league_id}, season {args.season}...")
+            seasons = fetch_all_seasons(args.league_id, current_season=args.season)
         save_history(seasons, cache)
     else:
         print(f"Loading cached history from {cache}...")
+        if args.provider == "sleeper":
+            from providers.sleeper_history import load_history
+        else:
+            from providers.yahoo_history import load_history
         seasons = load_history(cache)
 
     build_dashboard(seasons, output)
@@ -163,11 +172,17 @@ def main():
     # dashboard subcommand (league history)
     # -----------------------------------------------------------------------
     dp = sub.add_parser("dashboard", help="Generate a league history dashboard (static HTML)")
-    dp.add_argument("league_id", help="Yahoo league ID (numeric)")
+    dp.add_argument("league_id", help="League ID (numeric)")
     dp.add_argument("slug", help="Short name for this league used in the URL and file paths (e.g. lobos)")
     dp.add_argument(
+        "--provider",
+        choices=["yahoo", "sleeper"],
+        default="yahoo",
+        help="Fantasy platform (default: yahoo)",
+    )
+    dp.add_argument(
         "--season", type=int, default=2025,
-        help="Most recent season to start the history chain from (default: 2025)",
+        help="Most recent season year — Yahoo only (default: 2025)",
     )
     dp.add_argument(
         "--output", default=None,
@@ -179,7 +194,7 @@ def main():
     )
     dp.add_argument(
         "--refresh", action="store_true",
-        help="Re-fetch from Yahoo even if cache exists",
+        help="Re-fetch from the platform even if cache exists",
     )
     dp.set_defaults(func=cmd_dashboard)
 

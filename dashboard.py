@@ -922,10 +922,10 @@ def build_dashboard(seasons, output_path="dashboard/index.html"):
     active_managers = [t["manager"] for t in latest["standings"]] if latest else []
 
     stats = {
-        "alltime":         _compute_alltime_standings(seasons),
-        "champions":       _compute_champions(seasons),
-        "h2h":             _compute_head_to_head(seasons),
-        "records":         _compute_records(seasons),
+        "alltime":         _compute_alltime_standings(completed),
+        "champions":       _compute_champions(completed),
+        "h2h":             _compute_head_to_head(completed),
+        "records":         _compute_records(completed),
         "active_managers": active_managers,
     }
 
