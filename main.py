@@ -55,20 +55,23 @@ def cmd_report(args):
 
 
 def cmd_dashboard(args):
+    import os
     from providers.yahoo_history import fetch_all_seasons, save_history, load_history
     from dashboard import build_dashboard
 
-    if args.refresh or not __import__("os").path.exists(args.cache):
+    cache = args.cache or f"{args.slug}_history.json"
+    output = args.output or f"dashboard/{args.slug}/index.html"
+
+    if args.refresh or not os.path.exists(cache):
         print(f"Fetching history for league {args.league_id}, season {args.season}...")
         seasons = fetch_all_seasons(args.league_id, current_season=args.season)
-        save_history(seasons, args.cache)
+        save_history(seasons, cache)
     else:
-        print(f"Loading cached history from {args.cache}...")
-        seasons = load_history(args.cache)
+        print(f"Loading cached history from {cache}...")
+        seasons = load_history(cache)
 
-    out = args.output
-    build_dashboard(seasons, out)
-    print(f"Dashboard written to {out}")
+    build_dashboard(seasons, output)
+    print(f"Dashboard written to {output}")
 
 
 def cmd_schedule(args):
@@ -161,17 +164,18 @@ def main():
     # -----------------------------------------------------------------------
     dp = sub.add_parser("dashboard", help="Generate a league history dashboard (static HTML)")
     dp.add_argument("league_id", help="Yahoo league ID (numeric)")
+    dp.add_argument("slug", help="Short name for this league used in the URL and file paths (e.g. lobos)")
     dp.add_argument(
         "--season", type=int, default=2025,
         help="Most recent season to start the history chain from (default: 2025)",
     )
     dp.add_argument(
-        "--output", default="dashboard/index.html",
-        help="Output HTML file path (default: dashboard/index.html)",
+        "--output", default=None,
+        help="Output HTML file path (default: dashboard/<slug>/index.html)",
     )
     dp.add_argument(
-        "--cache", default="lobos_history.json",
-        help="JSON cache file for raw season data (default: lobos_history.json)",
+        "--cache", default=None,
+        help="JSON cache file for raw season data (default: <slug>_history.json)",
     )
     dp.add_argument(
         "--refresh", action="store_true",
