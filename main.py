@@ -60,7 +60,7 @@ def cmd_dashboard(args):
     from dashboard import build_dashboard
 
     cache = args.cache or f"{args.slug}_history.json"
-    output = args.output or f"dashboard/{args.slug}/index.html"
+    output = args.output or f"docs/{args.slug}/index.html"
 
     if args.refresh or not os.path.exists(cache):
         print(f"Fetching history for league {args.league_id}, season {args.season}...")
@@ -171,7 +171,7 @@ def main():
     )
     dp.add_argument(
         "--output", default=None,
-        help="Output HTML file path (default: dashboard/<slug>/index.html)",
+        help="Output HTML file path (default: docs/<slug>/index.html)",
     )
     dp.add_argument(
         "--cache", default=None,
