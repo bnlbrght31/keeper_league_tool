@@ -263,15 +263,9 @@ def _compute_h2h_streaks(seasons, k2m):
 def _compute_records(seasons):
     k2m = _build_key_to_manager(seasons)
 
-    high_week = None   # {score, manager, team, season, week}
-    low_week = None
-    blowout = None     # {margin, winner, loser, score_w, score_l, season, week}
-    closest = None
-
-    best_season = None   # {manager, wins, losses, pf, season}
-    worst_season = None
-
-    all_scores = []  # (season, week, manager, score)
+    score_entries = []   # all individual weekly scores
+    margin_entries = []  # all matchup margins
+    season_entries = []  # all manager-seasons
 
     for s in seasons:
         yr = s["season"]
@@ -282,76 +276,136 @@ def _compute_records(seasons):
             wk = match["week"]
 
             for mgr, score, name in [(ma, sa, match["team_a"]), (mb, sb, match["team_b"])]:
-                if not mgr:
-                    continue
-                all_scores.append((yr, wk, mgr, score, name))
-                if score > 0:
-                    entry = {"score": score, "manager": mgr, "team": name, "season": yr, "week": wk}
-                    if high_week is None or score > high_week["score"]:
-                        high_week = entry
-                    if low_week is None or score < low_week["score"]:
-                        low_week = entry
+                if mgr and score > 0:
+                    score_entries.append({"score": score, "manager": mgr, "team": name, "season": yr, "week": wk})
 
             if ma and mb and sa > 0 and sb > 0:
                 margin = abs(sa - sb)
                 winner_mgr = ma if sa > sb else mb
                 loser_mgr  = mb if sa > sb else ma
-                score_w    = max(sa, sb)
-                score_l    = min(sa, sb)
-                w_name     = match["team_a"] if sa > sb else match["team_b"]
-                l_name     = match["team_b"] if sa > sb else match["team_a"]
-
-                blow_entry = {
+                margin_entries.append({
                     "margin": round(margin, 2),
-                    "winner": winner_mgr, "winner_team": w_name,
-                    "loser": loser_mgr, "loser_team": l_name,
-                    "score_w": score_w, "score_l": score_l,
+                    "winner": winner_mgr,
+                    "loser":  loser_mgr,
+                    "score_w": round(max(sa, sb), 2),
+                    "score_l": round(min(sa, sb), 2),
                     "season": yr, "week": wk,
-                }
-                close_entry = blow_entry.copy()
+                })
 
-                if blowout is None or margin > blowout["margin"]:
-                    blowout = blow_entry
-                if margin > 0 and (closest is None or margin < closest["margin"]):
-                    closest = close_entry
-
-        # Best/worst single season record by win %
         for t in s["standings"]:
             played = t["wins"] + t["losses"] + t["ties"]
             if played == 0:
                 continue
-            wpct = t["wins"] / played
-            entry = {
+            season_entries.append({
                 "manager": t["manager"], "team": t["name"],
                 "wins": t["wins"], "losses": t["losses"],
-                "pf": t["pf"], "win_pct": round(wpct, 3), "season": yr,
-            }
-            if best_season is None or wpct > best_season["win_pct"] or \
-               (wpct == best_season["win_pct"] and t["pf"] > best_season["pf"]):
-                best_season = entry
-            if worst_season is None or wpct < worst_season["win_pct"] or \
-               (wpct == worst_season["win_pct"] and t["pf"] < worst_season["pf"]):
-                worst_season = entry
+                "pf": t["pf"], "win_pct": round(t["wins"] / played, 3), "season": yr,
+            })
 
-    # Streaks: sort all scores by (season, week), track per manager
     streaks = _compute_streaks(seasons, k2m)
 
     return {
-        "high_week": high_week,
-        "low_week": low_week,
-        "blowout": blowout,
-        "closest": closest,
-        "best_season": best_season,
-        "worst_season": worst_season,
+        "high_week":     sorted(score_entries,  key=lambda x: -x["score"])[:10],
+        "low_week":      sorted(score_entries,  key=lambda x:  x["score"])[:10],
+        "blowouts":      sorted(margin_entries, key=lambda x: -x["margin"])[:10],
+        "closest":       sorted([x for x in margin_entries if x["margin"] > 0], key=lambda x: x["margin"])[:10],
+        "best_seasons":  sorted(season_entries, key=lambda x: (-x["win_pct"], -x["pf"]))[:10],
+        "worst_seasons": sorted(season_entries, key=lambda x:  (x["win_pct"],  x["pf"]))[:10],
         "streaks": streaks,
     }
 
 
-def _compute_streaks(seasons, k2m):
-    """Find longest win and loss streaks for each manager across all regular season games."""
-    # Collect all (season, week, manager, result) ordered chronologically
-    results = []  # (season, week, manager, won: bool)
+def _compute_playoff_report(seasons):
+    """
+    Only count games on the path to the championship.
+    3rd-place, 5th-place, etc. games are skipped because those teams already
+    have a loss and are no longer in contenders when those games are played.
+    Invariant: titles + po_losses == apps for every manager.
+    """
+    k2m = _build_key_to_manager(seasons)
+    mgr_stats = {}
 
+    def get(mgr):
+        if mgr not in mgr_stats:
+            mgr_stats[mgr] = {"manager": mgr, "apps": 0, "po_wins": 0,
+                               "po_losses": 0, "finals": 0, "titles": 0}
+        return mgr_stats[mgr]
+
+    for s in seasons:
+        champ = next((t["manager"] for t in s["standings"] if t["rank"] == 1), None)
+        non_consol = [m for m in s["all_matchups"]
+                      if m["is_playoffs"] and not m.get("is_consolation")]
+        if not non_consol:
+            continue
+
+        playoff_weeks = sorted({m["week"] for m in non_consol})
+        final_week = playoff_weeks[-1]
+
+        # Everyone who appears in any non-consolation game starts as a contender
+        contenders = set()
+        for match in non_consol:
+            for key in (match["key_a"], match["key_b"]):
+                mgr = k2m.get(key)
+                if mgr:
+                    contenders.add(mgr)
+
+        for mgr in contenders:
+            get(mgr)["apps"] += 1
+
+        # Walk weeks in order; skip games where either team already has a loss
+        for week in playoff_weeks:
+            eliminated = set()
+            for match in [m for m in non_consol if m["week"] == week]:
+                ma = k2m.get(match["key_a"])
+                mb = k2m.get(match["key_b"])
+                if not ma or not mb:
+                    continue
+                if ma not in contenders or mb not in contenders:
+                    continue  # placement game — both teams already lost once
+
+                sa, sb = match["score_a"], match["score_b"]
+                winner = ma if sa > sb else (mb if sb > sa else None)
+                loser  = mb if sa > sb else (ma if sb > sa else None)
+                if winner:
+                    get(winner)["po_wins"] += 1
+                if loser:
+                    get(loser)["po_losses"] += 1
+                    eliminated.add(loser)
+
+                # Both remaining contenders meeting in the final week = championship game
+                if week == final_week:
+                    get(ma)["finals"] += 1
+                    get(mb)["finals"] += 1
+
+            contenders -= eliminated
+
+        # If multiple contenders remain after all weeks (tied championship score),
+        # use standings to settle: champion wins, others take the loss
+        if len(contenders) > 1 and champ:
+            for mgr in contenders:
+                if mgr == champ:
+                    get(mgr)["po_wins"] += 1
+                else:
+                    get(mgr)["po_losses"] += 1
+
+        if champ:
+            get(champ)["titles"] += 1
+
+    rows = list(mgr_stats.values())
+    for r in rows:
+        total = r["po_wins"] + r["po_losses"]
+        r["po_pct"] = round(r["po_wins"] / total, 3) if total else 0.0
+    rows.sort(key=lambda r: (-r["apps"], -r["po_pct"], -r["titles"]))
+    return rows
+
+
+def _compute_streaks(seasons, k2m):
+    """
+    Find top-10 win and loss streaks across all managers.
+    Each distinct non-overlapping streak is its own entry, so one manager
+    can appear multiple times. Each entry includes the season range.
+    """
+    results = []  # (season, week, manager, won)
     for s in seasons:
         yr = s["season"]
         for match in s["matchups"]:
@@ -369,31 +423,39 @@ def _compute_streaks(seasons, k2m):
 
     results.sort(key=lambda r: (r[0], r[1]))
 
-    # Per-manager running streaks
+    # Per-manager games in chronological order, keeping season info
     mgr_games = {}
-    for _, _, mgr, won in results:
-        if mgr not in mgr_games:
-            mgr_games[mgr] = []
-        mgr_games[mgr].append(won)
+    for yr, _wk, mgr, won in results:
+        mgr_games.setdefault(mgr, []).append((yr, won))
 
-    best_win_streak  = {"manager": None, "length": 0}
-    best_loss_streak = {"manager": None, "length": 0}
+    win_streaks  = []
+    loss_streaks = []
 
     for mgr, games in mgr_games.items():
-        cur_w = cur_l = max_w = max_l = 0
-        for won in games:
-            if won:
-                cur_w += 1; cur_l = 0
-            else:
-                cur_l += 1; cur_w = 0
-            max_w = max(max_w, cur_w)
-            max_l = max(max_l, cur_l)
-        if max_w > best_win_streak["length"]:
-            best_win_streak  = {"manager": mgr, "length": max_w}
-        if max_l > best_loss_streak["length"]:
-            best_loss_streak = {"manager": mgr, "length": max_l}
+        cur_type = None
+        cur_seasons = []
 
-    return {"win": best_win_streak, "loss": best_loss_streak}
+        def flush():
+            if not cur_seasons:
+                return
+            start, end = cur_seasons[0], cur_seasons[-1]
+            years = str(start) if start == end else f"{start}–{end}"
+            entry = {"manager": mgr, "length": len(cur_seasons), "years": years}
+            (win_streaks if cur_type else loss_streaks).append(entry)
+
+        for yr, won in games:
+            if cur_type is None or won == cur_type:
+                cur_seasons.append(yr)
+                cur_type = won
+            else:
+                flush()
+                cur_seasons = [yr]
+                cur_type = won
+        flush()
+
+    win_streaks.sort(key=lambda x: -x["length"])
+    loss_streaks.sort(key=lambda x: -x["length"])
+    return {"win": win_streaks[:10], "loss": loss_streaks[:10]}
 
 
 # ---------------------------------------------------------------------------
@@ -462,6 +524,11 @@ tr:hover td{{background:#1c2128}}
 .rec-sub{{font-size:13px;color:#58a6ff}}
 .rec-detail{{font-size:12px;color:#8b949e;margin-top:4px}}
 .nemesis-row td:first-child{{font-weight:600;color:#e6edf3}}
+.rec-expand-btn{{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:#58a6ff;background:#1c3d5a;border:1px solid #1f6feb;border-radius:5px;padding:4px 10px;cursor:pointer;user-select:none;transition:background .15s}}
+.rec-expand-btn:hover{{background:#1f4a6e}}
+.rec-expand-list{{margin-top:8px;border-top:1px solid #21262d;padding-top:8px}}
+.rec-expand-row{{font-size:12px;color:#8b949e;padding:3px 0;line-height:1.5}}
+.rec-expand-rank{{color:#58a6ff;font-weight:700;margin-right:6px;min-width:24px;display:inline-block}}
 .filter-bar{{display:flex;align-items:center;gap:10px;margin-bottom:20px}}
 .filter-bar label{{font-size:13px;color:#8b949e;font-weight:600}}
 .filter-bar select{{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer}}
@@ -594,6 +661,20 @@ tr:hover td{{background:#1c2128}}
 <div id="records" class="section">
   <h2>Records &amp; Milestones</h2>
   <div class="records-grid" id="records-grid"></div>
+  <h2 style="margin-top:32px">Playoff Report</h2>
+  <div class="card">
+    <table id="playoff-report-tbl">
+      <thead><tr>
+        <th style="text-align:left">Manager</th>
+        <th>Apps</th>
+        <th>PO Record</th>
+        <th>PO Win%</th>
+        <th>Finals</th>
+        <th>Titles</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
@@ -1021,58 +1102,97 @@ window.renderPvP = function() {{
   const rec = DATA.records;
   const grid = document.getElementById('records-grid');
 
-  function card(label, value, sub, detail) {{
+  // Expandable card: items is an array; top entry shown by default, rest revealed on click
+  function card(label, items, fmtVal, fmtSub, fmtDetail) {{
+    if (!items || !items.length) return;
     const d = document.createElement('div');
     d.className = 'rec-card';
+    const top = items[0];
     d.innerHTML = `
       <div class="rec-label">${{label}}</div>
-      <div class="rec-value">${{value}}</div>
-      ${{sub ? `<div class="rec-sub">${{sub}}</div>` : ''}}
-      ${{detail ? `<div class="rec-detail">${{detail}}</div>` : ''}}
+      <div class="rec-value">${{fmtVal(top)}}</div>
+      <div class="rec-sub">${{fmtSub(top)}}</div>
+      ${{fmtDetail ? `<div class="rec-detail">${{fmtDetail(top)}}</div>` : ''}}
     `;
+    if (items.length > 1) {{
+      const btn = document.createElement('div');
+      btn.className = 'rec-expand-btn';
+      btn.textContent = `▾ see top ${{items.length}}`;
+      const list = document.createElement('div');
+      list.className = 'rec-expand-list';
+      list.style.display = 'none';
+      items.slice(1).forEach((item, i) => {{
+        const row = document.createElement('div');
+        row.className = 'rec-expand-row';
+        const detail = fmtDetail ? ' · ' + fmtDetail(item) : '';
+        row.innerHTML = `<span class="rec-expand-rank">#${{i + 2}}</span>${{fmtVal(item)}} — ${{fmtSub(item)}}${{detail}}`;
+        list.appendChild(row);
+      }});
+      btn.addEventListener('click', () => {{
+        const open = list.style.display !== 'none';
+        list.style.display = open ? 'none' : '';
+        btn.textContent = open ? `▾ see top ${{items.length}}` : '▴ collapse';
+      }});
+      d.appendChild(btn);
+      d.appendChild(list);
+    }}
     grid.appendChild(d);
   }}
 
-  if (rec.high_week) {{
-    const h = rec.high_week;
-    card('Highest Single-Week Score', h.score.toFixed(2) + ' pts',
-      h.manager, `${{h.team}} · Week ${{h.week}}, ${{h.season}}`);
-  }}
-  if (rec.low_week) {{
-    const l = rec.low_week;
-    card('Lowest Single-Week Score', l.score.toFixed(2) + ' pts',
-      l.manager, `${{l.team}} · Week ${{l.week}}, ${{l.season}}`);
-  }}
-  if (rec.blowout) {{
-    const b = rec.blowout;
-    card('Biggest Blowout', '+' + b.margin.toFixed(2) + ' margin',
-      b.winner + ' def. ' + b.loser,
-      `${{b.score_w.toFixed(2)}}–${{b.score_l.toFixed(2)}} · Week ${{b.week}}, ${{b.season}}`);
-  }}
-  if (rec.closest) {{
-    const c = rec.closest;
-    card('Closest Game', c.margin.toFixed(2) + ' margin',
-      c.winner + ' def. ' + c.loser,
-      `${{c.score_w.toFixed(2)}}–${{c.score_l.toFixed(2)}} · Week ${{c.week}}, ${{c.season}}`);
-  }}
-  if (rec.best_season) {{
-    const b = rec.best_season;
-    card('Best Single Season', b.wins + '–' + b.losses,
-      b.manager, `${{b.team}} · ${{b.season}} · ${{b.pf.toFixed(1)}} pts`);
-  }}
-  if (rec.worst_season) {{
-    const w = rec.worst_season;
-    card('Worst Single Season', w.wins + '–' + w.losses,
-      w.manager, `${{w.team}} · ${{w.season}} · ${{w.pf.toFixed(1)}} pts`);
-  }}
-  if (rec.streaks.win.manager) {{
-    const s = rec.streaks.win;
-    card('Longest Win Streak', s.length + ' wins', s.manager);
-  }}
-  if (rec.streaks.loss.manager) {{
-    const s = rec.streaks.loss;
-    card('Longest Losing Streak', s.length + ' losses', s.manager);
-  }}
+  card('Highest Single-Week Score', rec.high_week,
+    h => h.score.toFixed(2) + ' pts',
+    h => h.manager,
+    h => `${{h.team}} · Week ${{h.week}}, ${{h.season}}`);
+
+  card('Lowest Single-Week Score', rec.low_week,
+    l => l.score.toFixed(2) + ' pts',
+    l => l.manager,
+    l => `${{l.team}} · Week ${{l.week}}, ${{l.season}}`);
+
+  card('Biggest Blowout', rec.blowouts,
+    b => '+' + b.margin.toFixed(2) + ' margin',
+    b => b.winner + ' def. ' + b.loser,
+    b => `${{b.score_w.toFixed(2)}}–${{b.score_l.toFixed(2)}} · Week ${{b.week}}, ${{b.season}}`);
+
+  card('Closest Game', rec.closest,
+    c => c.margin.toFixed(2) + ' margin',
+    c => c.winner + ' def. ' + c.loser,
+    c => `${{c.score_w.toFixed(2)}}–${{c.score_l.toFixed(2)}} · Week ${{c.week}}, ${{c.season}}`);
+
+  card('Best Single Season', rec.best_seasons,
+    b => b.wins + '–' + b.losses,
+    b => b.manager,
+    b => `${{b.team}} · ${{b.season}} · ${{b.pf.toFixed(1)}} pts`);
+
+  card('Worst Single Season', rec.worst_seasons,
+    w => w.wins + '–' + w.losses,
+    w => w.manager,
+    w => `${{w.team}} · ${{w.season}} · ${{w.pf.toFixed(1)}} pts`);
+
+  card('Longest Win Streak',    rec.streaks.win,  s => s.length + ' wins',   s => s.manager + ' (' + s.years + ')');
+  card('Longest Losing Streak', rec.streaks.loss, s => s.length + ' losses', s => s.manager + ' (' + s.years + ')');
+}})();
+
+// ── Playoff Report ─────────────────────────────────────────────────────────
+(function buildPlayoffReport() {{
+  const rows = DATA.playoffs;
+  const tbody = document.querySelector('#playoff-report-tbl tbody');
+  rows.forEach(r => {{
+    const tr = document.createElement('tr');
+    const poRec = r.po_wins + '–' + r.po_losses;
+    const poPct = r.po_wins + r.po_losses > 0
+      ? (r.po_pct * 100).toFixed(1) + '%' : '—';
+    const trophy = r.titles > 0 ? ' <span style="color:#ffd700">' + '🏆'.repeat(r.titles) + '</span>' : '';
+    tr.innerHTML = `
+      <td><strong>${{r.manager}}</strong></td>
+      <td style="text-align:center">${{r.apps}}</td>
+      <td style="text-align:center">${{poRec}}</td>
+      <td style="text-align:center;font-variant-numeric:tabular-nums">${{poPct}}</td>
+      <td style="text-align:center">${{r.finals > 0 ? r.finals : '—'}}</td>
+      <td style="text-align:center">${{r.titles > 0 ? r.titles + trophy : '—'}}</td>
+    `;
+    tbody.appendChild(tr);
+  }});
 }})();
 </script>
 </body>
@@ -1096,6 +1216,7 @@ def build_dashboard(seasons, output_path="dashboard/index.html"):
         "champions":       _compute_champions(completed),
         "h2h":             _compute_head_to_head(completed),
         "records":         _compute_records(completed),
+        "playoffs":        _compute_playoff_report(completed),
         "active_managers": active_managers,
     }
 
