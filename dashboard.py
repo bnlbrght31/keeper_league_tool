@@ -148,6 +148,38 @@ def _compute_head_to_head(seasons):
                 matrix[ma][mb]["ties"] += 1
                 matrix[mb][ma]["ties"] += 1
 
+    # Full matchup log for player-vs-player lookup (all matchups including playoffs)
+    matchup_log = []
+    for s in seasons:
+        champ = next((t["manager"] for t in s["standings"] if t["rank"] == 1), None)
+        final_week = max(
+            (m["week"] for m in s["all_matchups"] if m["is_playoffs"] and not m.get("is_consolation")),
+            default=None,
+        )
+        for match in s["all_matchups"]:
+            ma = k2m.get(match["key_a"])
+            mb = k2m.get(match["key_b"])
+            if not ma or not mb or ma == mb:
+                continue
+            is_champ_game = (
+                match["is_playoffs"]
+                and not match.get("is_consolation")
+                and match["week"] == final_week
+                and champ in (ma, mb)
+            )
+            matchup_log.append({
+                "season": s["season"],
+                "week": match["week"],
+                "ma": ma,
+                "mb": mb,
+                "sa": match["score_a"],
+                "sb": match["score_b"],
+                "playoffs": match["is_playoffs"],
+                "consolation": match.get("is_consolation", False),
+                "championship": is_champ_game,
+            })
+    matchup_log.sort(key=lambda m: (m["season"], m["week"]))
+
     # Nemesis: opponent each manager has the worst record against (min win%)
     nemeses = {}
     for m in managers:
@@ -164,7 +196,7 @@ def _compute_head_to_head(seasons):
         nemeses[m] = {"nemesis": best_nemesis, "win_pct": round(worst_pct, 3) if best_nemesis else None}
 
     streaks = _compute_h2h_streaks(seasons, k2m)
-    return {"managers": managers, "matrix": matrix, "nemeses": nemeses, "streaks": streaks}
+    return {"managers": managers, "matrix": matrix, "nemeses": nemeses, "streaks": streaks, "matchup_log": matchup_log}
 
 
 def _compute_h2h_streaks(seasons, k2m):
@@ -280,7 +312,7 @@ def _compute_records(seasons):
 
                 if blowout is None or margin > blowout["margin"]:
                     blowout = blow_entry
-                if closest is None or margin < closest["margin"]:
+                if margin > 0 and (closest is None or margin < closest["margin"]):
                     closest = close_entry
 
         # Best/worst single season record by win %
@@ -452,6 +484,7 @@ tr:hover td{{background:#1c2128}}
   <button class="tab active" onclick="show('standings')">All-Time Standings</button>
   <button class="tab" onclick="show('champions')">Champions</button>
   <button class="tab" onclick="show('h2h')">Head-to-Head</button>
+  <button class="tab" onclick="show('pvp')">Player vs Player</button>
   <button class="tab" onclick="show('records')">Records</button>
 </nav>
 
@@ -536,6 +569,25 @@ tr:hover td{{background:#1c2128}}
         <tbody></tbody>
       </table>
     </div>
+  </div>
+
+  </div>
+</div>
+
+<div id="pvp" class="section">
+  <h2>Player vs Player</h2>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+      <select id="pvp-p1" onchange="renderPvP()" style="min-width:160px;padding:8px 12px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:6px;font-size:15px">
+        <option value="">— Player 1 —</option>
+      </select>
+      <span style="color:#8b949e;font-weight:700;font-size:18px">vs</span>
+      <select id="pvp-p2" onchange="renderPvP()" style="min-width:160px;padding:8px 12px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:6px;font-size:15px">
+        <option value="">— Player 2 —</option>
+      </select>
+      <span id="pvp-summary" style="color:#8b949e;font-size:14px;margin-left:8px"></span>
+    </div>
+    <div id="pvp-results"></div>
   </div>
 </div>
 
@@ -870,6 +922,99 @@ function renderH2H() {{
   if (!top_active.length) acBody.innerHTML = '<tr><td colspan="3" class="neutral">No active streaks ≥ 2</td></tr>';
 }}
 renderH2H();
+
+// ── Player vs Player ───────────────────────────────────────────────────────
+(function initPvP() {{
+  const mgrs = DATA.h2h.managers;
+  const p1sel = document.getElementById('pvp-p1');
+  const p2sel = document.getElementById('pvp-p2');
+  mgrs.forEach(m => {{
+    p1sel.insertAdjacentHTML('beforeend', `<option value="${{m}}">${{m}}</option>`);
+    p2sel.insertAdjacentHTML('beforeend', `<option value="${{m}}">${{m}}</option>`);
+  }});
+}})();
+
+window.renderPvP = function() {{
+  const p1 = document.getElementById('pvp-p1').value;
+  const p2 = document.getElementById('pvp-p2').value;
+  const results = document.getElementById('pvp-results');
+  const summary = document.getElementById('pvp-summary');
+
+  if (!p1 || !p2 || p1 === p2) {{
+    results.innerHTML = '';
+    summary.textContent = '';
+    return;
+  }}
+
+  const log = DATA.h2h.matchup_log.filter(
+    m => (m.ma === p1 && m.mb === p2) || (m.ma === p2 && m.mb === p1)
+  );
+
+  if (!log.length) {{
+    results.innerHTML = '<p style="color:#8b949e">No matchups found between these players.</p>';
+    summary.textContent = '';
+    return;
+  }}
+
+  let p1w = 0, p2w = 0, ties = 0;
+  log.forEach(m => {{
+    const p1score = m.ma === p1 ? m.sa : m.sb;
+    const p2score = m.ma === p1 ? m.sb : m.sa;
+    if (p1score > p2score) p1w++;
+    else if (p2score > p1score) p2w++;
+    else ties++;
+  }});
+  summary.textContent = ties > 0
+    ? `${{p1}}: ${{p1w}}–${{p2w}}–${{ties}} vs ${{p2}}`
+    : `${{p1}}: ${{p1w}}–${{p2w}} vs ${{p2}}`;
+
+  const rows = log.map(m => {{
+    const p1score = m.ma === p1 ? m.sa : m.sb;
+    const p2score = m.ma === p1 ? m.sb : m.sa;
+    const p1wins  = p1score > p2score;
+    const isTie   = p1score === p2score;
+
+    let rowStyle = '';
+    if (m.championship) rowStyle = 'background:rgba(210,153,34,0.15);outline:1px solid rgba(210,153,34,0.4)';
+    else if (p1wins)    rowStyle = 'background:rgba(63,185,80,0.12)';
+    else if (!isTie)    rowStyle = 'background:rgba(248,81,73,0.12)';
+
+    let typeLabel = '';
+    if (m.championship)      typeLabel = '<span style="color:#d29922;font-weight:700">🏆 Championship</span>';
+    else if (m.consolation)  typeLabel = '<span style="color:#8b949e">Consolation</span>';
+    else if (m.playoffs)     typeLabel = '<span style="color:#58a6ff">Playoffs</span>';
+
+    const resultIcon = p1wins ? '<span style="color:#3fb950">▲</span>'
+                     : isTie  ? '<span style="color:#8b949e">—</span>'
+                     :          '<span style="color:#f85149">▼</span>';
+
+    return `<tr style="${{rowStyle}}">
+      <td style="color:#8b949e">${{m.season}}</td>
+      <td style="color:#8b949e">Wk ${{m.week}}</td>
+      <td><strong>${{p1}}</strong></td>
+      <td style="text-align:right;font-weight:700">${{p1score.toFixed(2)}}</td>
+      <td style="text-align:center">${{resultIcon}}</td>
+      <td style="font-weight:700">${{p2score.toFixed(2)}}</td>
+      <td><strong>${{p2}}</strong></td>
+      <td style="text-align:right;font-size:12px">${{typeLabel}}</td>
+    </tr>`;
+  }}).join('');
+
+  results.innerHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left">Season</th>
+        <th style="text-align:left">Week</th>
+        <th style="text-align:left">${{p1}}</th>
+        <th style="text-align:right">Score</th>
+        <th></th>
+        <th style="text-align:left">Score</th>
+        <th style="text-align:left">${{p2}}</th>
+        <th style="text-align:right">Type</th>
+      </tr></thead>
+      <tbody>${{rows}}</tbody>
+    </table>`;
+}};
 
 // ── Records ────────────────────────────────────────────────────────────────
 (function buildRecords() {{
