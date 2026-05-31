@@ -38,10 +38,15 @@ def _compute_alltime_standings(seasons):
 
         # Championship bracket playoff W/L keyed by team_key
         po_record = {}  # team_key → [wins, losses]
+        playoff_team_keys = set()  # teams in the championship bracket (non-consolation)
         for match in s["all_matchups"]:
-            if not match["is_playoffs"] or match.get("is_consolation"):
+            if not match["is_playoffs"]:
+                continue
+            if match.get("is_consolation"):
                 continue
             ka, kb = match["key_a"], match["key_b"]
+            playoff_team_keys.add(ka)
+            playoff_team_keys.add(kb)
             for k in (ka, kb):
                 if k not in po_record:
                     po_record[k] = [0, 0]
@@ -57,7 +62,7 @@ def _compute_alltime_standings(seasons):
             if m not in totals:
                 totals[m] = {"manager": m, "wins": 0, "losses": 0, "ties": 0,
                               "pf": 0.0, "pa": 0.0, "seasons": 0, "titles": 0,
-                              "season_records": []}
+                              "playoff_apps": 0, "season_records": []}
             totals[m]["wins"] += t["wins"]
             totals[m]["losses"] += t["losses"]
             totals[m]["ties"] += t["ties"]
@@ -67,16 +72,21 @@ def _compute_alltime_standings(seasons):
             champion = (m == champ)
             if champion:
                 totals[m]["titles"] += 1
+            made_playoffs = t["team_key"] in playoff_team_keys
+            if made_playoffs:
+                totals[m]["playoff_apps"] += 1
             po = po_record.get(t["team_key"], None)
             totals[m]["season_records"].append({
                 "season": s["season"],
                 "team_name": t["name"],
                 "wins": t["wins"],
                 "losses": t["losses"],
+                "ties": t.get("ties", 0),
                 "pf": round(t["pf"], 1),
                 "pa": round(t["pa"], 1),
                 "rank": t["rank"],
                 "champion": champion,
+                "playoff_app": made_playoffs,
                 "po_wins": po[0] if po else None,
                 "po_losses": po[1] if po else None,
             })
@@ -115,8 +125,8 @@ def _compute_champions(seasons):
 def _compute_head_to_head(seasons):
     k2m = _build_key_to_manager(seasons)
     managers = _canonical_managers(seasons)
-    # matrix[a][b] = {wins, losses} where wins = a beat b
-    matrix = {m: {n: {"wins": 0, "losses": 0} for n in managers if n != m} for m in managers}
+    # matrix[a][b] = {wins, losses, ties} where wins = a beat b
+    matrix = {m: {n: {"wins": 0, "losses": 0, "ties": 0} for n in managers if n != m} for m in managers}
 
     for s in seasons:
         for match in s["matchups"]:
@@ -134,6 +144,9 @@ def _compute_head_to_head(seasons):
             elif match["score_b"] > match["score_a"]:
                 matrix[mb][ma]["wins"] += 1
                 matrix[ma][mb]["losses"] += 1
+            else:
+                matrix[ma][mb]["ties"] += 1
+                matrix[mb][ma]["ties"] += 1
 
     # Nemesis: opponent each manager has the worst record against (min win%)
     nemeses = {}
@@ -141,7 +154,7 @@ def _compute_head_to_head(seasons):
         best_nemesis = None
         worst_pct = 1.1
         for opp, rec in matrix[m].items():
-            total = rec["wins"] + rec["losses"]
+            total = rec["wins"] + rec["losses"] + rec["ties"]
             if total < 3:
                 continue
             pct = rec["wins"] / total
@@ -463,9 +476,11 @@ tr:hover td{{background:#1c2128}}
         <th class="sortable" data-key="seasons" data-type="num">Seasons</th>
         <th class="sortable" data-key="wins" data-type="num">W</th>
         <th class="sortable" data-key="losses" data-type="num">L</th>
+        <th class="sortable" data-key="ties" data-type="num">T</th>
         <th class="sortable sort-desc" data-key="win_pct" data-type="num">Win%</th>
         <th class="sortable" data-key="pf" data-type="num">PF</th>
         <th class="sortable" data-key="pa" data-type="num">PA</th>
+        <th class="sortable" data-key="playoff_apps" data-type="num">Playoffs</th>
         <th class="sortable" data-key="titles" data-type="num">Titles</th>
       </tr></thead>
       <tbody></tbody>
@@ -588,6 +603,7 @@ function show(id) {{
         <td>${{s.season}}</td>
         <td class="win">${{s.wins}}</td>
         <td class="loss">${{s.losses}}</td>
+        ${{s.ties > 0 ? `<td class="neutral">${{s.ties}}</td>` : '<td class="neutral">—</td>'}}
         <td>${{s.pf.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
         <td class="neutral">${{s.pa.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
         ${{poCell(s)}}
@@ -595,7 +611,7 @@ function show(id) {{
       </tr>`).join('');
     tr.innerHTML = `<td colspan="${{ncols}}"><div class="expand-inner">
       <table>
-        <thead><tr><th>Season</th><th>RS W</th><th>RS L</th><th>PF</th><th>PA</th><th>Playoffs</th><th>Finish</th></tr></thead>
+        <thead><tr><th>Season</th><th>RS W</th><th>RS L</th><th>T</th><th>PF</th><th>PA</th><th>Playoffs</th><th>Finish</th></tr></thead>
         <tbody>${{seasonRows}}</tbody>
       </table></div></td>`;
     return tr;
@@ -611,9 +627,11 @@ function show(id) {{
       <td class="neutral">${{r.seasons}}</td>
       <td class="win">${{r.wins}}</td>
       <td class="loss">${{r.losses}}</td>
+      <td class="neutral">${{r.ties > 0 ? r.ties : '—'}}</td>
       <td class="pct">${{(r.win_pct*100).toFixed(1)}}%</td>
       <td>${{r.pf.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
       <td class="neutral">${{r.pa.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
+      <td class="neutral">${{r.playoff_apps > 0 ? r.playoff_apps : '—'}}</td>
       <td>${{r.titles > 0 ? r.titles : '—'}}</td>
     `;
     tr.addEventListener('click', () => {{
@@ -636,10 +654,12 @@ function show(id) {{
     if (isSeason) {{
       // Single-season mode: swap column headers
       thead.cells[2].textContent = 'Team';
-      thead.cells[8].textContent = 'Finish';
+      thead.cells[9].textContent = 'Made PO';
+      thead.cells[10].textContent = 'Finish';
       // Disable sort on those two cols
       thead.cells[2].classList.remove('sortable');
-      thead.cells[8].classList.remove('sortable');
+      thead.cells[9].classList.remove('sortable');
+      thead.cells[10].classList.remove('sortable');
 
       const srMap = seasonLookup[parseInt(seasonVal)] || {{}};
       const rows = Object.values(srMap)
@@ -663,9 +683,11 @@ function show(id) {{
           <td class="neutral" style="font-size:12px">${{sr.team_name}}</td>
           <td class="win">${{sr.wins}}</td>
           <td class="loss">${{sr.losses}}</td>
-          <td class="pct">${{(sr.wins/(sr.wins+sr.losses)*100).toFixed(1)}}%</td>
+          <td class="neutral">${{sr.ties > 0 ? sr.ties : '—'}}</td>
+          <td class="pct">${{(sr.wins/(sr.wins+sr.losses+(sr.ties||0))*100).toFixed(1)}}%</td>
           <td>${{sr.pf.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
           <td class="neutral">${{sr.pa.toLocaleString('en-US',{{minimumFractionDigits:1,maximumFractionDigits:1}})}}</td>
+          <td class="neutral">${{sr.playoff_app ? '✓' : '—'}}</td>
           <td>${{finishBadge(sr)}}</td>
         `;
         tbody.appendChild(tr);
@@ -673,9 +695,11 @@ function show(id) {{
     }} else {{
       // All-time mode: restore column headers
       thead.cells[2].textContent = 'Seasons';
-      thead.cells[8].textContent = 'Titles';
+      thead.cells[9].textContent = 'Playoffs';
+      thead.cells[10].textContent = 'Titles';
       thead.cells[2].classList.add('sortable');
-      thead.cells[8].classList.add('sortable');
+      thead.cells[9].classList.add('sortable');
+      thead.cells[10].classList.add('sortable');
 
       const sorted = [...DATA.alltime]
         .filter(r => !flt || flt.has(r.manager))
@@ -738,7 +762,7 @@ function renderH2H() {{
     managers.forEach(col => {{
       if (row === col) {{ cells += '<td class="self">·</td>'; return; }}
       const rec = matrix[row][col];
-      const w = rec.wins, l = rec.losses, tot = w + l;
+      const w = rec.wins, l = rec.losses, t = rec.ties || 0, tot = w + l + t;
       if (tot === 0) {{ cells += '<td class="even">—</td>'; return; }}
       const pct = w / tot;
       let cls = 'even';
@@ -746,7 +770,8 @@ function renderH2H() {{
       else if (pct > .5) cls = 'winning';
       else if (pct <= .3) cls = 'dominated';
       else if (pct < .5) cls = 'losing';
-      cells += `<td class="${{cls}}" title="${{row}} vs ${{col}}: ${{w}}-${{l}}">${{w}}-${{l}}</td>`;
+      const lbl = t > 0 ? `${{w}}-${{l}}-${{t}}` : `${{w}}-${{l}}`;
+      cells += `<td class="${{cls}}" title="${{row}} vs ${{col}}: ${{lbl}}">${{lbl}}</td>`;
     }});
     tr.innerHTML = cells;
     tbl.appendChild(tr);
@@ -761,7 +786,7 @@ function renderH2H() {{
       if (opp === m) return;
       const rec = matrix[m][opp];
       if (!rec) return;
-      const tot = rec.wins + rec.losses;
+      const tot = rec.wins + rec.losses + (rec.ties || 0);
       if (tot < 3) return;
       const pct = rec.wins / tot;
       if (pct < worstPct) {{ worstPct = pct; worstOpp = opp; }}
@@ -773,7 +798,7 @@ function renderH2H() {{
     tr.innerHTML = `
       <td>${{m}}</td>
       <td style="color:#f85149">${{worstOpp}}</td>
-      <td class="loss">${{rec.wins}}–${{rec.losses}} (${{(worstPct*100).toFixed(0)}}% win rate)</td>
+      <td class="loss">${{rec.wins}}–${{rec.losses}}${{rec.ties ? `–${{rec.ties}}` : ''}} (${{(worstPct*100).toFixed(0)}}% win rate)</td>
     `;
     ntbody.appendChild(tr);
   }});

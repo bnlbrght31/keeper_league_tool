@@ -54,30 +54,72 @@ def cmd_report(args):
         sys.exit(1)
 
 
+def _apply_name_map(seasons, name_map):
+    """
+    Replace manager fields in seasons using a {platform_username: real_name} dict.
+    Mutates seasons in place and returns them.
+    """
+    for s in seasons:
+        for t in s["standings"]:
+            mapped = name_map.get(t["manager"])
+            if mapped:
+                t["manager"] = mapped
+        for m in s.get("matchups", []) + s.get("all_matchups", []):
+            for key in ("team_a", "team_b"):
+                mapped = name_map.get(m[key])
+                if mapped:
+                    m[key] = mapped
+    return seasons
+
+
 def cmd_dashboard(args):
-    import os
+    import os, json
     from dashboard import build_dashboard
 
     cache = args.cache or f"{args.slug}_history.json"
     output = args.output or f"docs/{args.slug}/index.html"
 
+    name_map = {}
+    if getattr(args, "name_map", None) and args.name_map:
+        with open(args.name_map) as f:
+            name_map = json.load(f)
+
     if args.refresh or not os.path.exists(cache):
         if args.provider == "sleeper":
-            from providers.sleeper_history import fetch_all_seasons, save_history, load_history
+            from providers.sleeper_history import fetch_all_seasons, save_history
             print(f"Fetching Sleeper history for league {args.league_id}...")
             seasons = fetch_all_seasons(args.league_id)
+        elif args.provider == "espn":
+            from providers.espn_history import fetch_all_seasons, save_history
+            print(f"Fetching ESPN history for league {args.league_id} ({args.start_year}–{args.end_year})...")
+            seasons = fetch_all_seasons(args.league_id, args.start_year, args.end_year)
+        elif args.provider == "combined":
+            from providers.espn_history import fetch_all_seasons as espn_fetch, save_history
+            from providers.sleeper_history import fetch_all_seasons as sleeper_fetch
+            print(f"Fetching ESPN history for league {args.espn_id} ({args.espn_start_year}–{args.espn_end_year})...")
+            espn_seasons = espn_fetch(args.espn_id, args.espn_start_year, args.espn_end_year)
+            print(f"Fetching Sleeper history for league {args.sleeper_id}...")
+            sleeper_seasons = sleeper_fetch(args.sleeper_id)
+            if name_map:
+                _apply_name_map(espn_seasons, name_map)
+                _apply_name_map(sleeper_seasons, name_map)
+            seasons = sorted(espn_seasons + sleeper_seasons, key=lambda s: s["season"])
         else:
-            from providers.yahoo_history import fetch_all_seasons, save_history, load_history
+            from providers.yahoo_history import fetch_all_seasons, save_history
             print(f"Fetching Yahoo history for league {args.league_id}, season {args.season}...")
             seasons = fetch_all_seasons(args.league_id, current_season=args.season)
+
+        if name_map and args.provider != "combined":
+            _apply_name_map(seasons, name_map)
+
         save_history(seasons, cache)
     else:
         print(f"Loading cached history from {cache}...")
-        if args.provider == "sleeper":
-            from providers.sleeper_history import load_history
-        else:
-            from providers.yahoo_history import load_history
-        seasons = load_history(cache)
+        with open(cache) as f:
+            seasons = json.load(f)
+
+        if name_map:
+            _apply_name_map(seasons, name_map)
 
     build_dashboard(seasons, output)
     print(f"Dashboard written to {output}")
@@ -172,17 +214,34 @@ def main():
     # dashboard subcommand (league history)
     # -----------------------------------------------------------------------
     dp = sub.add_parser("dashboard", help="Generate a league history dashboard (static HTML)")
-    dp.add_argument("league_id", help="League ID (numeric)")
+    dp.add_argument("league_id", nargs="?", default=None, help="League ID (not used for --provider combined)")
     dp.add_argument("slug", help="Short name for this league used in the URL and file paths (e.g. lobos)")
     dp.add_argument(
         "--provider",
-        choices=["yahoo", "sleeper"],
+        choices=["yahoo", "sleeper", "espn", "combined"],
         default="yahoo",
         help="Fantasy platform (default: yahoo)",
     )
     dp.add_argument(
         "--season", type=int, default=2025,
         help="Most recent season year — Yahoo only (default: 2025)",
+    )
+    dp.add_argument(
+        "--start-year", type=int, default=2010,
+        help="First season year to fetch — ESPN only (default: 2010)",
+    )
+    dp.add_argument(
+        "--end-year", type=int, default=2025,
+        help="Last season year to fetch — ESPN only (default: 2025)",
+    )
+    # combined provider arguments
+    dp.add_argument("--espn-id", default=None, help="ESPN league ID — combined provider only")
+    dp.add_argument("--espn-start-year", type=int, default=2005, help="First ESPN season — combined provider only")
+    dp.add_argument("--espn-end-year", type=int, default=2020, help="Last ESPN season — combined provider only")
+    dp.add_argument("--sleeper-id", default=None, help="Sleeper league ID — combined provider only")
+    dp.add_argument(
+        "--name-map", default=None,
+        help="JSON file mapping platform usernames to real names (applied to all providers)",
     )
     dp.add_argument(
         "--output", default=None,

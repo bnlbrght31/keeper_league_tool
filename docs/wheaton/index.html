@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wheaton Academy — League History</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
+header{background:linear-gradient(135deg,#1c3d5a 0%,#0d1117 100%);padding:32px 24px 24px;text-align:center;border-bottom:1px solid #21262d}
+header h1{font-size:28px;font-weight:800;letter-spacing:-.5px}
+header p{color:#8b949e;font-size:14px;margin-top:6px}
+nav{display:flex;justify-content:center;gap:4px;padding:16px 24px;border-bottom:1px solid #21262d;background:#161b22;position:sticky;top:0;z-index:10}
+.tab{padding:8px 20px;border-radius:6px;border:1px solid transparent;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:#8b949e;transition:all .15s}
+.tab:hover{background:#21262d;color:#e6edf3}
+.tab.active{background:#1c3d5a;border-color:#1f6feb;color:#58a6ff}
+.section{display:none;max-width:1100px;margin:0 auto;padding:32px 24px}
+.section.active{display:block}
+h2{font-size:20px;font-weight:700;margin-bottom:20px;color:#f0f6fc}
+.card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:20px;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px 12px;border-bottom:2px solid #21262d;color:#8b949e;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:#e6edf3}
+th.sort-asc::after{content:' ▲';font-size:10px}
+th.sort-desc::after{content:' ▼';font-size:10px}
+td{padding:10px 12px;border-bottom:1px solid #21262d}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1c2128}
+.rank{color:#8b949e;font-size:13px;width:32px}
+.champion-badge{display:inline-block;background:#b8860b;color:#fff9c4;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:6px}
+.win{color:#3fb950}
+.loss{color:#f85149}
+.neutral{color:#8b949e}
+.pct{font-variant-numeric:tabular-nums}
+.champ-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.champ-card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:18px;transition:transform .15s}
+.champ-card:hover{transform:translateY(-2px)}
+.champ-year{font-size:13px;color:#8b949e;margin-bottom:4px}
+.champ-manager{font-size:18px;font-weight:800;color:#f0f6fc;margin-bottom:2px}
+.champ-team{font-size:13px;color:#58a6ff;margin-bottom:8px}
+.champ-record{font-size:13px;color:#8b949e}
+/* H2H matrix */
+.matrix-wrap{overflow-x:auto}
+.matrix{border-collapse:collapse;font-size:12px;white-space:nowrap}
+.matrix th,.matrix td{padding:6px 8px;border:1px solid #21262d;text-align:center}
+.matrix th{background:#161b22;color:#8b949e;font-weight:600}
+.matrix .row-label{text-align:right;font-weight:600;color:#e6edf3;background:#161b22;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.matrix td.self{background:#0d1117}
+.matrix td.dominant{background:#1a3a1e;color:#3fb950}
+.matrix td.winning{background:#1a2a1e;color:#3fb950}
+.matrix td.even{background:#1c2128;color:#8b949e}
+.matrix td.losing{background:#2a1a1a;color:#f85149}
+.matrix td.dominated{background:#3a1a1a;color:#f85149}
+/* Records grid */
+.records-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.rec-card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:18px}
+.rec-label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;margin-bottom:8px;font-weight:600}
+.rec-value{font-size:26px;font-weight:800;color:#f0f6fc;margin-bottom:4px}
+.rec-sub{font-size:13px;color:#58a6ff}
+.rec-detail{font-size:12px;color:#8b949e;margin-top:4px}
+.nemesis-row td:first-child{font-weight:600;color:#e6edf3}
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.filter-bar label{font-size:13px;color:#8b949e;font-weight:600}
+.filter-bar select{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer}
+.mgr-link{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.mgr-link:hover{color:#58a6ff}
+.expand-row td{padding:0;border-bottom:1px solid #21262d}
+.expand-inner{padding:12px 16px 16px 40px;background:#0d1117}
+.expand-inner table{font-size:13px}
+.expand-inner th{font-size:11px;padding:6px 10px}
+.expand-inner td{padding:6px 10px;border-bottom:1px solid #161b22}
+.expand-inner tr:last-child td{border-bottom:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏈 Wheaton Academy</h1>
+  <p>League History · 2005–2025</p>
+</header>
+<nav>
+  <button class="tab active" onclick="show('standings')">All-Time Standings</button>
+  <button class="tab" onclick="show('champions')">Champions</button>
+  <button class="tab" onclick="show('h2h')">Head-to-Head</button>
+  <button class="tab" onclick="show('records')">Records</button>
+</nav>
+
+<div id="standings" class="section active">
+  <div class="filter-bar">
+    <label for="standings-filter">Players:</label>
+    <select id="standings-filter" onchange="renderTable()">
+      <option value="all">All Players</option>
+      <option value="active">Active Players</option>
+    </select>
+    <label for="season-filter" style="margin-left:12px">Season:</label>
+    <select id="season-filter" onchange="renderTable()">
+      <option value="all">All Time</option>
+    </select>
+  </div>
+  <h2>All-Time Standings</h2>
+  <div class="card">
+    <table id="standings-tbl">
+      <thead><tr>
+        <th></th>
+        <th class="sortable" data-key="manager" data-type="str">Manager</th>
+        <th class="sortable" data-key="seasons" data-type="num">Seasons</th>
+        <th class="sortable" data-key="wins" data-type="num">W</th>
+        <th class="sortable" data-key="losses" data-type="num">L</th>
+        <th class="sortable" data-key="ties" data-type="num">T</th>
+        <th class="sortable sort-desc" data-key="win_pct" data-type="num">Win%</th>
+        <th class="sortable" data-key="pf" data-type="num">PF</th>
+        <th class="sortable" data-key="pa" data-type="num">PA</th>
+        <th class="sortable" data-key="playoff_apps" data-type="num">Playoffs</th>
+        <th class="sortable" data-key="titles" data-type="num">Titles</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="champions" class="section">
+  <h2>Hall of Champions</h2>
+  <div class="champ-grid" id="champ-grid"></div>
+</div>
+
+<div id="h2h" class="section">
+  <div class="filter-bar">
+    <label for="h2h-filter">Show:</label>
+    <select id="h2h-filter" onchange="renderH2H()">
+      <option value="all">All Players</option>
+      <option value="active">Active Players</option>
+    </select>
+  </div>
+  <h2>Head-to-Head Records</h2>
+  <div class="card matrix-wrap">
+    <table class="matrix" id="h2h-tbl"></table>
+  </div>
+  <h2 style="margin-top:32px">Nemesis Report</h2>
+  <div class="card">
+    <table id="nemesis-tbl">
+      <thead><tr><th>Manager</th><th>Nemesis</th><th>Record vs Nemesis</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h2 style="margin-top:32px">H2H Winning Streaks — Per Manager</h2>
+  <div class="card">
+    <table id="streak-mgr-tbl">
+      <thead><tr><th>Manager</th><th>Best All-Time Streak</th><th>vs</th><th>Current Streak</th><th>vs</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+    <div class="card">
+      <h2 style="margin-bottom:16px">Top 5 All-Time H2H Streaks</h2>
+      <table id="streak-alltime-tbl">
+        <thead><tr><th>Manager</th><th>vs</th><th>Consecutive Wins</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:16px">Top 5 Active H2H Streaks</h2>
+      <table id="streak-active-tbl">
+        <thead><tr><th>Manager</th><th>vs</th><th>Active Wins</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="records" class="section">
+  <h2>Records &amp; Milestones</h2>
+  <div class="records-grid" id="records-grid"></div>
+</div>
+
+<script>
+const DATA = {"alltime":[{"manager":"Brooks","wins":8,"losses":5,"ties":0,"pf":1080.0,"pa":1009.0,"seasons":1,"titles":0,"playoff_apps":1,"season_records":[{"season":2006,"team_name":"Brooks Redzone","wins":8,"losses":5,"ties":0,"pf":1080.0,"pa":1009.0,"rank":3,"champion":false,"playoff_app":true,"po_wins":2,"po_losses":1}],"win_pct":0.615,"rank":1},{"manager":"Stevens","wins":8,"losses":6,"ties":0,"pf":1003.0,"pa":1051.0,"seasons":1,"titles":0,"playoff_apps":0,"season_records":[{"season":2005,"team_name":"Holmes Sri Lanka","wins":8,"losses":6,"ties":0,"pf":1003.0,"pa":1051.0,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.571,"rank":2},{"manager":"Nate","wins":47,"losses":36,"ties":0,"pf":6780.5,"pa":6178.2,"seasons":6,"titles":0,"playoff_apps":2,"season_records":[{"season":2005,"team_name":"The Diggity Dawgs","wins":7,"losses":7,"ties":0,"pf":992.0,"pa":1058.0,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2006,"team_name":"The Diggity Dawgs","wins":9,"losses":4,"ties":0,"pf":1125.0,"pa":979.0,"rank":6,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2007,"team_name":"The Diggity Dawgs","wins":11,"losses":3,"ties":0,"pf":1388.0,"pa":1117.0,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2008,"team_name":"The Diggity Dawgs","wins":8,"losses":6,"ties":0,"pf":1083.0,"pa":977.0,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"The Diggity Dawgs","wins":6,"losses":8,"ties":0,"pf":1120.0,"pa":1040.0,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"The Diggity Dawgs","wins":6,"losses":8,"ties":0,"pf":1072.5,"pa":1007.2,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.566,"rank":3},{"manager":"Ben","wins":162,"losses":131,"ties":0,"pf":25505.4,"pa":24692.9,"seasons":21,"titles":1,"playoff_apps":12,"season_records":[{"season":2005,"team_name":"Tuitama for Heisman","wins":7,"losses":7,"ties":0,"pf":1116.0,"pa":1025.0,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2006,"team_name":"Ethan Albright Football","wins":7,"losses":6,"ties":0,"pf":1088.0,"pa":955.0,"rank":2,"champion":false,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2007,"team_name":"Bad Newz Kennels","wins":3,"losses":11,"ties":0,"pf":952.0,"pa":1226.0,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2008,"team_name":"18 -1","wins":10,"losses":4,"ties":0,"pf":1254.0,"pa":1099.0,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2009,"team_name":"Cedric Benson  Boat Tours","wins":4,"losses":10,"ties":0,"pf":994.0,"pa":1214.0,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"Dez Bryant's Daddy","wins":6,"losses":8,"ties":0,"pf":1136.6,"pa":1195.3,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2011,"team_name":"The White Michael Vick","wins":8,"losses":6,"ties":0,"pf":1240.3,"pa":1211.0,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2012,"team_name":"Silent Assassin","wins":11,"losses":3,"ties":0,"pf":1395.1,"pa":1199.4,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2013,"team_name":"Silent Assassin","wins":9,"losses":5,"ties":0,"pf":1268.6,"pa":1052.9,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2014,"team_name":"Silent Assassin","wins":11,"losses":3,"ties":0,"pf":1203.2,"pa":1064.4,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2015,"team_name":"Silent Assassin","wins":5,"losses":9,"ties":0,"pf":1086.0,"pa":1232.3,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"Silent Assassin","wins":7,"losses":7,"ties":0,"pf":1278.3,"pa":1197.7,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2017,"team_name":"Silent Assassin","wins":9,"losses":5,"ties":0,"pf":1272.6,"pa":1231.6,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2018,"team_name":"Silent Assassin","wins":6,"losses":8,"ties":0,"pf":1245.0,"pa":1302.6,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"Silent Assassin","wins":6,"losses":8,"ties":0,"pf":1202.4,"pa":1322.8,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"Silent Assassin","wins":8,"losses":6,"ties":0,"pf":1288.3,"pa":1228.3,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"Silent Assassin","wins":11,"losses":3,"ties":0,"pf":1439.9,"pa":1142.8,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2022,"team_name":"TuAnon","wins":10,"losses":4,"ties":0,"pf":1176.8,"pa":1109.8,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2023,"team_name":"TuAnon","wins":8,"losses":6,"ties":0,"pf":1297.6,"pa":1159.3,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2024,"team_name":"TuAnon","wins":9,"losses":5,"ties":0,"pf":1246.8,"pa":1153.3,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2025,"team_name":"Buc-ee\u2019s Back","wins":7,"losses":7,"ties":0,"pf":1323.9,"pa":1370.5,"rank":6,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2}],"win_pct":0.553,"rank":4},{"manager":"Theo","wins":23,"losses":19,"ties":0,"pf":3876.9,"pa":3730.5,"seasons":3,"titles":0,"playoff_apps":1,"season_records":[{"season":2023,"team_name":"tselvag97","wins":9,"losses":5,"ties":0,"pf":1349.2,"pa":1228.2,"rank":3,"champion":false,"playoff_app":true,"po_wins":2,"po_losses":1},{"season":2024,"team_name":"tselvag97","wins":7,"losses":7,"ties":0,"pf":1229.0,"pa":1249.1,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2025,"team_name":"tselvag97","wins":7,"losses":7,"ties":0,"pf":1298.7,"pa":1253.1,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.548,"rank":5},{"manager":"Josh","wins":151,"losses":126,"ties":2,"pf":23675.7,"pa":22787.2,"seasons":20,"titles":2,"playoff_apps":10,"season_records":[{"season":2006,"team_name":"JLue  4 U","wins":8,"losses":5,"ties":0,"pf":983.0,"pa":844.0,"rank":5,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2007,"team_name":"JLue  4 U","wins":9,"losses":4,"ties":1,"pf":1112.0,"pa":1027.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2008,"team_name":"JLue  4 U","wins":6,"losses":8,"ties":0,"pf":1030.0,"pa":1072.0,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"JLue  4 U","wins":6,"losses":8,"ties":0,"pf":1139.0,"pa":1091.0,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"JLue  4 U","wins":6,"losses":8,"ties":0,"pf":1101.1,"pa":1171.4,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2011,"team_name":"JLue  4 U","wins":7,"losses":7,"ties":0,"pf":1139.2,"pa":1186.0,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"JLue  Renewed","wins":8,"losses":6,"ties":0,"pf":1235.8,"pa":1127.0,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"JLue  UnGlued","wins":9,"losses":5,"ties":0,"pf":1319.2,"pa":1226.9,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2014,"team_name":"JLue  LovesFondue","wins":7,"losses":7,"ties":0,"pf":1174.4,"pa":1194.4,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"JLue  TrainGoChoChoo","wins":5,"losses":8,"ties":1,"pf":1058.2,"pa":1071.7,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"JLue  TrainGoChoChoo","wins":11,"losses":3,"ties":0,"pf":1334.5,"pa":1096.2,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2017,"team_name":"JLue  TrainGoChoChoo","wins":8,"losses":6,"ties":0,"pf":1132.0,"pa":1137.1,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"JLue  PutUintheNICU","wins":9,"losses":5,"ties":0,"pf":1297.4,"pa":1250.7,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2019,"team_name":"JLue  DoYouInTheZoo","wins":9,"losses":5,"ties":0,"pf":1346.4,"pa":1280.9,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2020,"team_name":"JLue  DoYouInTheZoo","wins":9,"losses":5,"ties":0,"pf":1290.9,"pa":1154.1,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2021,"team_name":"JLueScoreOnYou","wins":9,"losses":5,"ties":0,"pf":1194.7,"pa":1149.2,"rank":5,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2022,"team_name":"JLueScoreOnYou","wins":5,"losses":9,"ties":0,"pf":1035.1,"pa":1144.4,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2023,"team_name":"JLueScoreOnYou","wins":7,"losses":7,"ties":0,"pf":1188.6,"pa":1189.1,"rank":6,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2024,"team_name":"JLueScoreOnYou","wins":4,"losses":10,"ties":0,"pf":1082.7,"pa":1112.1,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2025,"team_name":"JLueScoreOnYou","wins":9,"losses":5,"ties":0,"pf":1481.6,"pa":1261.9,"rank":4,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":2}],"win_pct":0.541,"rank":6},{"manager":"Riebock","wins":7,"losses":6,"ties":0,"pf":915.0,"pa":986.0,"seasons":1,"titles":0,"playoff_apps":0,"season_records":[{"season":2006,"team_name":"ShufflinCrew ShufflinCrew","wins":7,"losses":6,"ties":0,"pf":915.0,"pa":986.0,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.538,"rank":7},{"manager":"John","wins":112,"losses":98,"ties":0,"pf":18592.0,"pa":18133.2,"seasons":15,"titles":1,"playoff_apps":6,"season_records":[{"season":2011,"team_name":"The Diggity Dawgs","wins":9,"losses":5,"ties":0,"pf":1335.6,"pa":1230.1,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"Team Really Seck","wins":10,"losses":4,"ties":0,"pf":1387.3,"pa":1178.4,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2013,"team_name":"Tim Brady Motha fcka!","wins":9,"losses":5,"ties":0,"pf":1364.1,"pa":1213.8,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2014,"team_name":"Ben owns me. Like a lot","wins":4,"losses":10,"ties":0,"pf":1115.0,"pa":1326.3,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"Nine Juan Juan","wins":9,"losses":5,"ties":0,"pf":1248.7,"pa":1107.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2016,"team_name":"Nine Juan Juan","wins":3,"losses":11,"ties":0,"pf":1077.4,"pa":1286.9,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"The Diggity Dawgs","wins":8,"losses":6,"ties":0,"pf":1127.2,"pa":1057.4,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"Dolphinately Dawgs","wins":9,"losses":5,"ties":0,"pf":1320.9,"pa":1224.1,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2019,"team_name":"Lots of Off - Season Trouble","wins":11,"losses":3,"ties":0,"pf":1365.8,"pa":1081.4,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2020,"team_name":"The Wet Bandits","wins":7,"losses":7,"ties":0,"pf":1255.8,"pa":1205.8,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"Right in the Fauci","wins":9,"losses":5,"ties":0,"pf":1357.4,"pa":1225.6,"rank":2,"champion":false,"playoff_app":true,"po_wins":2,"po_losses":1},{"season":2022,"team_name":"The Lizardverse","wins":8,"losses":6,"ties":0,"pf":1055.2,"pa":1058.9,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2023,"team_name":"Black Hebrew Israelites","wins":4,"losses":10,"ties":0,"pf":1071.2,"pa":1331.8,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2024,"team_name":"Dominion Voting Machines","wins":9,"losses":5,"ties":0,"pf":1280.3,"pa":1134.0,"rank":4,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":2},{"season":2025,"team_name":"Ghislaine\u2019s Father, Rob","wins":3,"losses":11,"ties":0,"pf":1230.1,"pa":1471.7,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.533,"rank":8},{"manager":"Axel","wins":152,"losses":140,"ties":1,"pf":24531.8,"pa":24757.1,"seasons":21,"titles":1,"playoff_apps":10,"season_records":[{"season":2005,"team_name":"Fightin' Axmen","wins":3,"losses":10,"ties":1,"pf":1016.0,"pa":1209.0,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2006,"team_name":"Fightin' Axmen","wins":10,"losses":3,"ties":0,"pf":923.0,"pa":876.0,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2007,"team_name":"Fightin' Axmen","wins":7,"losses":7,"ties":0,"pf":1174.0,"pa":1140.0,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2008,"team_name":"Fightin' Axmen","wins":6,"losses":8,"ties":0,"pf":1164.0,"pa":1196.0,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"Fightin' Axmen","wins":9,"losses":5,"ties":0,"pf":1194.0,"pa":1174.0,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2010,"team_name":"Fightin' Axmen","wins":6,"losses":8,"ties":0,"pf":1114.1,"pa":1157.2,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2011,"team_name":"Fightin' Axmen","wins":9,"losses":5,"ties":0,"pf":1347.6,"pa":1099.9,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2012,"team_name":"Fightin' Axmen","wins":9,"losses":5,"ties":0,"pf":1131.5,"pa":1152.9,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2013,"team_name":"Luck of the Axmen","wins":10,"losses":4,"ties":0,"pf":1313.8,"pa":1134.1,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2014,"team_name":"Luck of the Axmen","wins":11,"losses":3,"ties":0,"pf":1303.0,"pa":1147.0,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2015,"team_name":"Luck of the Axmen","wins":5,"losses":9,"ties":0,"pf":1027.5,"pa":1221.6,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"Luck of the Axmen","wins":10,"losses":4,"ties":0,"pf":1244.4,"pa":1194.7,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2017,"team_name":"AXE Capital","wins":4,"losses":10,"ties":0,"pf":990.3,"pa":1108.5,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"AXE Capital","wins":6,"losses":8,"ties":0,"pf":1200.8,"pa":1282.5,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"AXE Capital","wins":8,"losses":6,"ties":0,"pf":1291.9,"pa":1136.4,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"AXE Capital","wins":6,"losses":8,"ties":0,"pf":1190.4,"pa":1260.8,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"AXE Capital","wins":5,"losses":9,"ties":0,"pf":1149.3,"pa":1200.7,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2022,"team_name":"AXE Capital","wins":7,"losses":7,"ties":0,"pf":1185.1,"pa":1195.6,"rank":6,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2023,"team_name":"AXE Capital","wins":7,"losses":7,"ties":0,"pf":1146.3,"pa":1205.7,"rank":5,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2024,"team_name":"AXE Capital","wins":10,"losses":4,"ties":0,"pf":1135.1,"pa":1103.1,"rank":3,"champion":false,"playoff_app":true,"po_wins":2,"po_losses":1},{"season":2025,"team_name":"AXE Capital","wins":4,"losses":10,"ties":0,"pf":1289.6,"pa":1561.4,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.519,"rank":9},{"manager":"Tyler","wins":147,"losses":144,"ties":2,"pf":24922.9,"pa":24902.4,"seasons":21,"titles":4,"playoff_apps":10,"season_records":[{"season":2005,"team_name":"Tyler  Keith","wins":9,"losses":4,"ties":1,"pf":1340.0,"pa":1168.0,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2006,"team_name":"Tyler  Keith","wins":8,"losses":4,"ties":1,"pf":1039.0,"pa":1005.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":1,"po_losses":0},{"season":2007,"team_name":"Tyler  Keith","wins":3,"losses":11,"ties":0,"pf":874.0,"pa":1134.0,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2008,"team_name":"Tyler  Keith","wins":8,"losses":6,"ties":0,"pf":1155.0,"pa":1123.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2009,"team_name":"TK OOOO","wins":8,"losses":6,"ties":0,"pf":1154.0,"pa":1147.0,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2010,"team_name":"TK OOOO","wins":3,"losses":11,"ties":0,"pf":1023.4,"pa":1241.2,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2011,"team_name":"TK OOOO","wins":11,"losses":3,"ties":0,"pf":1383.5,"pa":1172.9,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2012,"team_name":"TK OOOO","wins":6,"losses":8,"ties":0,"pf":1196.7,"pa":1265.9,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"TK OOOO","wins":10,"losses":4,"ties":0,"pf":1468.4,"pa":1183.4,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2014,"team_name":"TK OOOO","wins":11,"losses":3,"ties":0,"pf":1383.4,"pa":1128.9,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2015,"team_name":"TK OOOO","wins":9,"losses":5,"ties":0,"pf":1282.4,"pa":1107.8,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2016,"team_name":"TK OOOO","wins":9,"losses":5,"ties":0,"pf":1293.5,"pa":1137.3,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"TK OOOO","wins":3,"losses":11,"ties":0,"pf":924.4,"pa":1259.3,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"TK OOOO","wins":3,"losses":11,"ties":0,"pf":1252.4,"pa":1323.6,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"TK OOOO","wins":8,"losses":6,"ties":0,"pf":1378.5,"pa":1284.6,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2020,"team_name":"TK OOOO","wins":5,"losses":9,"ties":0,"pf":1077.9,"pa":1295.8,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"TKO","wins":8,"losses":6,"ties":0,"pf":1220.8,"pa":1208.7,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2022,"team_name":"TKO","wins":7,"losses":7,"ties":0,"pf":1307.7,"pa":1267.0,"rank":3,"champion":false,"playoff_app":true,"po_wins":2,"po_losses":1},{"season":2023,"team_name":"TKO","wins":7,"losses":7,"ties":0,"pf":1001.6,"pa":1024.4,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2024,"team_name":"TKO","wins":5,"losses":9,"ties":0,"pf":1015.8,"pa":1097.8,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2025,"team_name":"TKO","wins":6,"losses":8,"ties":0,"pf":1150.5,"pa":1326.9,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.502,"rank":10},{"manager":"Tom","wins":147,"losses":145,"ties":1,"pf":24425.7,"pa":24387.8,"seasons":21,"titles":2,"playoff_apps":6,"season_records":[{"season":2005,"team_name":"Tommy O'Connell","wins":8,"losses":6,"ties":0,"pf":1197.0,"pa":1095.0,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2006,"team_name":"Tommy O'Connell","wins":7,"losses":6,"ties":0,"pf":964.0,"pa":923.0,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2007,"team_name":"Good Picks","wins":9,"losses":5,"ties":0,"pf":1130.0,"pa":1099.0,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2008,"team_name":"Dark Horse","wins":9,"losses":5,"ties":0,"pf":1142.0,"pa":1000.0,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2009,"team_name":"Dark Horse","wins":3,"losses":11,"ties":0,"pf":847.0,"pa":1108.0,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"Julius Peppers","wins":10,"losses":4,"ties":0,"pf":1285.5,"pa":1149.9,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2011,"team_name":"Ocean Breeze","wins":6,"losses":7,"ties":1,"pf":1061.7,"pa":1207.3,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"Ocean Breeze","wins":8,"losses":6,"ties":0,"pf":1070.2,"pa":1149.3,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2013,"team_name":"Ocean Breeze","wins":7,"losses":7,"ties":0,"pf":1181.9,"pa":1167.5,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2014,"team_name":"DeMarco Polo","wins":6,"losses":8,"ties":0,"pf":1197.9,"pa":1203.1,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"Tommy Picks","wins":7,"losses":7,"ties":0,"pf":1046.7,"pa":1156.2,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"Tommy Picks","wins":5,"losses":9,"ties":0,"pf":1253.3,"pa":1220.7,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"Tommy Picks","wins":7,"losses":7,"ties":0,"pf":1192.9,"pa":1005.9,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"Tommy Picks","wins":7,"losses":7,"ties":0,"pf":1290.7,"pa":1268.9,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"Tommy Picks","wins":8,"losses":6,"ties":0,"pf":1342.2,"pa":1269.8,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"Tommy Picks","wins":7,"losses":7,"ties":0,"pf":1134.8,"pa":1196.6,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"tfoconnell","wins":5,"losses":9,"ties":0,"pf":1151.5,"pa":1217.8,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2022,"team_name":"tfoconnell","wins":4,"losses":10,"ties":0,"pf":1012.4,"pa":1205.5,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2023,"team_name":"tfoconnell","wins":9,"losses":5,"ties":0,"pf":1171.7,"pa":1200.2,"rank":1,"champion":true,"playoff_app":true,"po_wins":3,"po_losses":0},{"season":2024,"team_name":"tfoconnell","wins":6,"losses":8,"ties":0,"pf":1142.7,"pa":1162.2,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2025,"team_name":"tfoconnell","wins":9,"losses":5,"ties":0,"pf":1609.6,"pa":1381.9,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1}],"win_pct":0.502,"rank":11},{"manager":"Davis","wins":7,"losses":7,"ties":0,"pf":1064.0,"pa":1076.0,"seasons":1,"titles":0,"playoff_apps":0,"season_records":[{"season":2007,"team_name":"schmavis malore","wins":7,"losses":7,"ties":0,"pf":1064.0,"pa":1076.0,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.5,"rank":12},{"manager":"Jason","wins":139,"losses":138,"ties":2,"pf":23355.3,"pa":23451.2,"seasons":20,"titles":2,"playoff_apps":8,"season_records":[{"season":2006,"team_name":"Edge Efing Blows","wins":4,"losses":9,"ties":0,"pf":924.0,"pa":1054.0,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2007,"team_name":"Sophomore Sensation","wins":6,"losses":7,"ties":1,"pf":1208.0,"pa":1186.0,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2008,"team_name":"J Baby","wins":6,"losses":8,"ties":0,"pf":1116.0,"pa":1142.0,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"J Baby","wins":6,"losses":8,"ties":0,"pf":1094.0,"pa":1082.0,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"The Musical  Fountain","wins":7,"losses":7,"ties":0,"pf":1167.7,"pa":1222.9,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2011,"team_name":"The Musical  Fountain","wins":3,"losses":11,"ties":0,"pf":1098.2,"pa":1292.2,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"Team BJ","wins":1,"losses":13,"ties":0,"pf":988.5,"pa":1173.2,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"J Bay Bay","wins":7,"losses":7,"ties":0,"pf":1138.9,"pa":1271.6,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2014,"team_name":"I Got No Johnson","wins":7,"losses":7,"ties":0,"pf":1198.7,"pa":1154.7,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"I Got No Johnson","wins":12,"losses":2,"ties":0,"pf":1336.6,"pa":1101.4,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2016,"team_name":"I Got No Johnson","wins":5,"losses":9,"ties":0,"pf":1001.2,"pa":1185.1,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"BuzzedDraftin is DrunkDraftin","wins":8,"losses":6,"ties":0,"pf":1044.8,"pa":1071.4,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2018,"team_name":"BuzzedDraftin is DrunkDraftin","wins":10,"losses":3,"ties":1,"pf":1266.4,"pa":1159.3,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2019,"team_name":"BuzzedDraftin is DrunkDraftin","wins":9,"losses":5,"ties":0,"pf":1315.1,"pa":1190.1,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2020,"team_name":"BuzzedDraftin is DrunkDraftin","wins":8,"losses":6,"ties":0,"pf":1236.6,"pa":1193.6,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2021,"team_name":"#Grabembythe p*ssy ","wins":7,"losses":7,"ties":0,"pf":1026.8,"pa":1254.0,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2022,"team_name":"MAKE SURE YOU PAY LAMAR","wins":9,"losses":5,"ties":0,"pf":1301.2,"pa":1155.1,"rank":2,"champion":false,"playoff_app":true,"po_wins":2,"po_losses":1},{"season":2023,"team_name":"Daddy J","wins":6,"losses":8,"ties":0,"pf":1050.0,"pa":1109.8,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2024,"team_name":"Daddy J","wins":9,"losses":5,"ties":0,"pf":1276.8,"pa":1187.1,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2025,"team_name":"Daddy J","wins":9,"losses":5,"ties":0,"pf":1565.7,"pa":1265.9,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1}],"win_pct":0.498,"rank":13},{"manager":"Hunter","wins":62,"losses":62,"ties":1,"pf":9905.3,"pa":10023.3,"seasons":9,"titles":0,"playoff_apps":2,"season_records":[{"season":2005,"team_name":"H Town","wins":5,"losses":9,"ties":0,"pf":1006.0,"pa":1082.0,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2006,"team_name":"H Town","wins":2,"losses":10,"ties":1,"pf":798.0,"pa":996.0,"rank":14,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2007,"team_name":"Champaign Illini","wins":6,"losses":8,"ties":0,"pf":1010.0,"pa":1116.0,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2008,"team_name":"Champaign Illini","wins":11,"losses":3,"ties":0,"pf":1278.0,"pa":1066.0,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2009,"team_name":"Fighting Illini","wins":8,"losses":6,"ties":0,"pf":1145.0,"pa":1099.0,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"Fighting Illini","wins":9,"losses":5,"ties":0,"pf":1208.5,"pa":1156.2,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2011,"team_name":"Fighting Illini","wins":8,"losses":6,"ties":0,"pf":1197.8,"pa":1107.0,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"Fighting Illini","wins":7,"losses":7,"ties":0,"pf":1188.5,"pa":1189.0,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"Fighting Illini","wins":6,"losses":8,"ties":0,"pf":1073.5,"pa":1212.1,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.496,"rank":14},{"manager":"Zach","wins":145,"losses":146,"ties":2,"pf":25218.5,"pa":24912.6,"seasons":21,"titles":1,"playoff_apps":8,"season_records":[{"season":2005,"team_name":"Steel Curtain","wins":4,"losses":10,"ties":0,"pf":1035.0,"pa":1222.0,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2006,"team_name":"Steel Curtain","wins":6,"losses":7,"ties":0,"pf":1042.0,"pa":1069.0,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2007,"team_name":"Steel Curtain","wins":10,"losses":4,"ties":0,"pf":1331.0,"pa":1146.0,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2008,"team_name":"Steel Curtain","wins":6,"losses":8,"ties":0,"pf":1037.0,"pa":1164.0,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"Steel Curtain","wins":9,"losses":5,"ties":0,"pf":1149.0,"pa":1048.0,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2010,"team_name":"Steel Curtain","wins":12,"losses":2,"ties":0,"pf":1340.1,"pa":1035.7,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2011,"team_name":"Steel Curtain","wins":4,"losses":10,"ties":0,"pf":1163.7,"pa":1377.5,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"Steel Curtain","wins":4,"losses":10,"ties":0,"pf":1084.3,"pa":1240.0,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"Steel Curtain","wins":4,"losses":10,"ties":0,"pf":1056.4,"pa":1244.4,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2014,"team_name":"Steel Curtain","wins":6,"losses":8,"ties":0,"pf":1213.6,"pa":1156.4,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"Steel Curtain","wins":8,"losses":6,"ties":0,"pf":1325.8,"pa":1190.7,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2016,"team_name":"Steel Curtain","wins":7,"losses":7,"ties":0,"pf":1094.3,"pa":1137.2,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"Steel Curtain","wins":8,"losses":6,"ties":0,"pf":1193.1,"pa":1130.7,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"Steel Curtain","wins":4,"losses":8,"ties":2,"pf":1177.9,"pa":1258.3,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"Steel Curtain","wins":6,"losses":8,"ties":0,"pf":1093.0,"pa":1169.9,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"Steel Curtain","wins":5,"losses":9,"ties":0,"pf":1177.7,"pa":1255.7,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"ZachCute","wins":3,"losses":11,"ties":0,"pf":1279.0,"pa":1381.6,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2022,"team_name":"ZachCute","wins":9,"losses":5,"ties":0,"pf":1244.3,"pa":1143.1,"rank":5,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2023,"team_name":"ZachCute","wins":12,"losses":2,"ties":0,"pf":1496.7,"pa":1036.1,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2024,"team_name":"ZachCute","wins":9,"losses":5,"ties":0,"pf":1295.4,"pa":1254.2,"rank":6,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2025,"team_name":"ZachCute","wins":9,"losses":5,"ties":0,"pf":1389.3,"pa":1252.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":3,"po_losses":0}],"win_pct":0.495,"rank":15},{"manager":"Joe","wins":139,"losses":150,"ties":4,"pf":24796.6,"pa":24691.7,"seasons":21,"titles":4,"playoff_apps":6,"season_records":[{"season":2005,"team_name":"Someone Smells Like POO","wins":10,"losses":2,"ties":2,"pf":1285.0,"pa":1080.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2006,"team_name":"Someone Smells Like POO","wins":5,"losses":8,"ties":0,"pf":1017.0,"pa":966.0,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2007,"team_name":"Italian Stallions","wins":3,"losses":11,"ties":0,"pf":1229.0,"pa":1241.0,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2008,"team_name":"Whitey's Army","wins":5,"losses":9,"ties":0,"pf":1011.0,"pa":1129.0,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"Whitey's Army","wins":8,"losses":6,"ties":0,"pf":1105.0,"pa":1059.0,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"Whitey's Army","wins":6,"losses":8,"ties":0,"pf":1177.2,"pa":1183.7,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2011,"team_name":"Whitey's Army","wins":6,"losses":7,"ties":1,"pf":1209.8,"pa":1259.5,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"Whitey's Army","wins":7,"losses":7,"ties":0,"pf":1169.2,"pa":1124.5,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"Whitey's Army","wins":4,"losses":10,"ties":0,"pf":1054.6,"pa":1203.6,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2014,"team_name":"Sex Panthers","wins":8,"losses":6,"ties":0,"pf":1276.5,"pa":1222.7,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2015,"team_name":"Sex Bengals","wins":7,"losses":6,"ties":1,"pf":1238.8,"pa":1163.9,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"Sex Bengals","wins":10,"losses":4,"ties":0,"pf":1332.9,"pa":1077.9,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2017,"team_name":"Sex Bengals","wins":4,"losses":10,"ties":0,"pf":1035.5,"pa":1144.2,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"Sex Bengals","wins":4,"losses":10,"ties":0,"pf":1198.6,"pa":1375.2,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"Sex Bengals","wins":8,"losses":6,"ties":0,"pf":1147.8,"pa":1152.2,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"Sex Bengals","wins":2,"losses":12,"ties":0,"pf":1000.7,"pa":1270.5,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"jselvagg","wins":9,"losses":5,"ties":0,"pf":1308.8,"pa":1227.6,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2022,"team_name":"jselvagg","wins":10,"losses":4,"ties":0,"pf":1286.9,"pa":1095.2,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2023,"team_name":"jselvagg","wins":6,"losses":8,"ties":0,"pf":1114.0,"pa":1114.7,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2024,"team_name":"jselvagg","wins":9,"losses":5,"ties":0,"pf":1307.9,"pa":1277.4,"rank":5,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2025,"team_name":"jselvagg","wins":8,"losses":6,"ties":0,"pf":1290.4,"pa":1324.0,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.474,"rank":16},{"manager":"Forrest","wins":137,"losses":156,"ties":0,"pf":23836.7,"pa":24617.5,"seasons":21,"titles":1,"playoff_apps":8,"season_records":[{"season":2005,"team_name":"pepto bandits","wins":9,"losses":5,"ties":0,"pf":1130.0,"pa":1012.0,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2006,"team_name":"pepto bandits","wins":3,"losses":10,"ties":0,"pf":732.0,"pa":951.0,"rank":13,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2007,"team_name":"pepto bandits","wins":9,"losses":5,"ties":0,"pf":1181.0,"pa":1145.0,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2008,"team_name":"pepto bandits","wins":4,"losses":10,"ties":0,"pf":903.0,"pa":1168.0,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"pepto bandits","wins":11,"losses":3,"ties":0,"pf":1278.0,"pa":1102.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2010,"team_name":"pepto bandits","wins":7,"losses":7,"ties":0,"pf":1198.4,"pa":1240.9,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2011,"team_name":"pepto bandits","wins":7,"losses":7,"ties":0,"pf":1228.2,"pa":1189.3,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2012,"team_name":"pepto bandits","wins":6,"losses":8,"ties":0,"pf":1154.7,"pa":1208.4,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"pepto bandits","wins":7,"losses":7,"ties":0,"pf":1186.3,"pa":1131.0,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2014,"team_name":"pepto bandits","wins":5,"losses":9,"ties":0,"pf":1184.1,"pa":1216.5,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"pepto bandits","wins":6,"losses":8,"ties":0,"pf":1083.4,"pa":1241.3,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"pepto bandits","wins":5,"losses":9,"ties":0,"pf":1064.0,"pa":1258.7,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"pepto bandits","wins":10,"losses":4,"ties":0,"pf":1197.4,"pa":1069.0,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2018,"team_name":"pepto bandits","wins":10,"losses":4,"ties":0,"pf":1431.6,"pa":1164.5,"rank":2,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2019,"team_name":"pepto bandits","wins":4,"losses":10,"ties":0,"pf":1066.0,"pa":1304.8,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"pepto bandits","wins":11,"losses":3,"ties":0,"pf":1263.1,"pa":1019.2,"rank":3,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1},{"season":2021,"team_name":"pepto bandits","wins":3,"losses":11,"ties":0,"pf":1004.1,"pa":1197.9,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2022,"team_name":"pepto bandits","wins":6,"losses":8,"ties":0,"pf":1096.2,"pa":1185.2,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2023,"team_name":"pepto bandits","wins":6,"losses":8,"ties":0,"pf":1167.1,"pa":1176.4,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2024,"team_name":"pepto bandits","wins":4,"losses":10,"ties":0,"pf":1014.3,"pa":1152.2,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2025,"team_name":"pepto bandits","wins":4,"losses":10,"ties":0,"pf":1273.8,"pa":1484.3,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.468,"rank":17},{"manager":"Pavan","wins":12,"losses":15,"ties":0,"pf":2038.0,"pa":2147.0,"seasons":2,"titles":0,"playoff_apps":0,"season_records":[{"season":2005,"team_name":"Rajun Cajuns","wins":6,"losses":8,"ties":0,"pf":973.0,"pa":1065.0,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2006,"team_name":"Rajun Cajuns","wins":6,"losses":7,"ties":0,"pf":1065.0,"pa":1082.0,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.444,"rank":18},{"manager":"Pasquale","wins":102,"losses":135,"ties":1,"pf":20177.3,"pa":20949.1,"seasons":17,"titles":1,"playoff_apps":5,"season_records":[{"season":2008,"team_name":"Don Selvaggio","wins":5,"losses":9,"ties":0,"pf":1093.0,"pa":1130.0,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2009,"team_name":"Don Selvaggio","wins":6,"losses":8,"ties":0,"pf":1003.0,"pa":1058.0,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2010,"team_name":"Fort Knox","wins":6,"losses":8,"ties":0,"pf":1150.3,"pa":1213.8,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2011,"team_name":"Fosters Home 4 ImaginaryFriend","wins":5,"losses":9,"ties":0,"pf":1110.2,"pa":1183.1,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2012,"team_name":"Whomping  Willow","wins":7,"losses":7,"ties":0,"pf":1240.0,"pa":1233.8,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2013,"team_name":"Blue Ducks","wins":2,"losses":12,"ties":0,"pf":968.0,"pa":1352.4,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2014,"team_name":"Fuck Fantasy Football","wins":5,"losses":9,"ties":0,"pf":1106.5,"pa":1338.9,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"... Whatever","wins":7,"losses":7,"ties":0,"pf":1203.6,"pa":1136.2,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"Everybody's First","wins":7,"losses":7,"ties":0,"pf":1204.4,"pa":1266.9,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"Brownside Down","wins":9,"losses":5,"ties":0,"pf":1369.0,"pa":1095.4,"rank":4,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2018,"team_name":"Brownside Down","wins":7,"losses":6,"ties":1,"pf":1391.9,"pa":1328.8,"rank":5,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"Brownside Down","wins":2,"losses":12,"ties":0,"pf":1028.6,"pa":1317.7,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"Anything Is Possibllllee!","wins":9,"losses":5,"ties":0,"pf":1324.9,"pa":1227.3,"rank":1,"champion":true,"playoff_app":true,"po_wins":2,"po_losses":0},{"season":2021,"team_name":"We suck again","wins":7,"losses":7,"ties":0,"pf":1221.7,"pa":1203.4,"rank":6,"champion":false,"playoff_app":true,"po_wins":0,"po_losses":2},{"season":2022,"team_name":"WA Baseball Boners","wins":6,"losses":8,"ties":0,"pf":1203.9,"pa":1211.2,"rank":11,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2024,"team_name":"Grumpy Old Men ","wins":3,"losses":11,"ties":0,"pf":1084.1,"pa":1228.5,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2025,"team_name":"Grumpy Old Men ","wins":9,"losses":5,"ties":0,"pf":1474.2,"pa":1423.8,"rank":5,"champion":false,"playoff_app":true,"po_wins":1,"po_losses":1}],"win_pct":0.429,"rank":19},{"manager":"Hockett","wins":6,"losses":8,"ties":0,"pf":1097.0,"pa":1123.0,"seasons":1,"titles":0,"playoff_apps":0,"season_records":[{"season":2005,"team_name":"Hocketts Samurai","wins":6,"losses":8,"ties":0,"pf":1097.0,"pa":1123.0,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.429,"rank":20},{"manager":"Jimmy","wins":50,"losses":90,"ties":0,"pf":10968.4,"pa":12159.1,"seasons":10,"titles":1,"playoff_apps":1,"season_records":[{"season":2014,"team_name":"La Losers","wins":3,"losses":11,"ties":0,"pf":1009.2,"pa":1212.2,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2015,"team_name":"Beef dipped wit Hot peppers","wins":3,"losses":11,"ties":0,"pf":1088.9,"pa":1296.5,"rank":12,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2016,"team_name":"Average Joe's Gym","wins":5,"losses":9,"ties":0,"pf":1101.1,"pa":1220.0,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2017,"team_name":"Chaz \"Michael\" Michaels","wins":6,"losses":8,"ties":0,"pf":1080.9,"pa":1249.6,"rank":9,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2018,"team_name":"Jimmy the  Juiceman","wins":7,"losses":7,"ties":0,"pf":1091.0,"pa":1226.1,"rank":7,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2019,"team_name":"Ray Finkle","wins":5,"losses":9,"ties":0,"pf":1090.8,"pa":1157.9,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2020,"team_name":"17 Coors Deep","wins":7,"losses":7,"ties":0,"pf":1261.6,"pa":1195.0,"rank":6,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2021,"team_name":"BidensBrain","wins":8,"losses":6,"ties":0,"pf":1239.2,"pa":1184.0,"rank":1,"champion":true,"playoff_app":true,"po_wins":3,"po_losses":0},{"season":2022,"team_name":"Javaris Ja'Marr Javarison","wins":3,"losses":11,"ties":0,"pf":1011.9,"pa":1145.7,"rank":10,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null},{"season":2023,"team_name":"Travis Kelc\u2026Swifty Swift","wins":3,"losses":11,"ties":0,"pf":993.8,"pa":1272.2,"rank":8,"champion":false,"playoff_app":false,"po_wins":null,"po_losses":null}],"win_pct":0.357,"rank":21}],"champions":[{"season":2025,"manager":"Zach","team_name":"ZachCute","wins":9,"losses":5,"pf":1389.26},{"season":2024,"manager":"Ben","team_name":"TuAnon","wins":9,"losses":5,"pf":1246.84},{"season":2023,"manager":"Tom","team_name":"tfoconnell","wins":9,"losses":5,"pf":1171.66},{"season":2022,"manager":"Joe","team_name":"jselvagg","wins":10,"losses":4,"pf":1286.9},{"season":2021,"manager":"Jimmy","team_name":"BidensBrain","wins":8,"losses":6,"pf":1239.2},{"season":2020,"manager":"Pasquale","team_name":"Anything Is Possibllllee!","wins":9,"losses":5,"pf":1324.9},{"season":2019,"manager":"Tyler","team_name":"TK OOOO","wins":8,"losses":6,"pf":1378.5},{"season":2018,"manager":"Jason","team_name":"BuzzedDraftin is DrunkDraftin","wins":10,"losses":3,"pf":1266.4},{"season":2017,"manager":"Jason","team_name":"BuzzedDraftin is DrunkDraftin","wins":8,"losses":6,"pf":1044.8},{"season":2016,"manager":"Joe","team_name":"Sex Bengals","wins":10,"losses":4,"pf":1332.9},{"season":2015,"manager":"John","team_name":"Nine Juan Juan","wins":9,"losses":5,"pf":1248.7},{"season":2014,"manager":"Joe","team_name":"Sex Panthers","wins":8,"losses":6,"pf":1276.5},{"season":2013,"manager":"Josh","team_name":"JLue  UnGlued","wins":9,"losses":5,"pf":1319.2},{"season":2012,"manager":"Axel","team_name":"Fightin' Axmen","wins":9,"losses":5,"pf":1131.5},{"season":2011,"manager":"Tyler","team_name":"TK OOOO","wins":11,"losses":3,"pf":1383.5},{"season":2010,"manager":"Tom","team_name":"Julius Peppers","wins":10,"losses":4,"pf":1285.5},{"season":2009,"manager":"Forrest","team_name":"pepto bandits","wins":11,"losses":3,"pf":1278.0},{"season":2008,"manager":"Tyler","team_name":"Tyler  Keith","wins":8,"losses":6,"pf":1155.0},{"season":2007,"manager":"Josh","team_name":"JLue  4 U","wins":9,"losses":4,"pf":1112.0},{"season":2006,"manager":"Tyler","team_name":"Tyler  Keith","wins":8,"losses":4,"pf":1039.0},{"season":2005,"manager":"Joe","team_name":"Someone Smells Like POO","wins":10,"losses":2,"pf":1285.0}],"h2h":{"managers":["Zach","Jason","Tom","Josh","Pasquale","Ben","Tyler","Axel","John","Forrest","Theo","Joe","Jimmy","Hunter","Nate","Davis","Brooks","Riebock","Pavan","Stevens","Hockett"],"matrix":{"Zach":{"Jason":{"wins":14,"losses":5,"ties":1},"Tom":{"wins":9,"losses":15,"ties":0},"Josh":{"wins":15,"losses":21,"ties":0},"Pasquale":{"wins":8,"losses":8,"ties":1},"Ben":{"wins":17,"losses":13,"ties":0},"Tyler":{"wins":11,"losses":10,"ties":0},"Axel":{"wins":7,"losses":14,"ties":0},"John":{"wins":6,"losses":12,"ties":0},"Forrest":{"wins":13,"losses":16,"ties":0},"Theo":{"wins":6,"losses":0,"ties":0},"Joe":{"wins":15,"losses":13,"ties":0},"Jimmy":{"wins":8,"losses":4,"ties":0},"Hunter":{"wins":9,"losses":7,"ties":0},"Nate":{"wins":3,"losses":3,"ties":0},"Davis":{"wins":1,"losses":0,"ties":0},"Brooks":{"wins":1,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":1,"ties":0},"Pavan":{"wins":1,"losses":2,"ties":0},"Stevens":{"wins":0,"losses":2,"ties":0},"Hockett":{"wins":1,"losses":0,"ties":0}},"Jason":{"Zach":{"wins":5,"losses":14,"ties":1},"Tom":{"wins":15,"losses":14,"ties":0},"Josh":{"wins":12,"losses":7,"ties":1},"Pasquale":{"wins":12,"losses":5,"ties":0},"Ben":{"wins":5,"losses":15,"ties":0},"Tyler":{"wins":17,"losses":13,"ties":0},"Axel":{"wins":16,"losses":14,"ties":0},"John":{"wins":7,"losses":8,"ties":0},"Forrest":{"wins":15,"losses":14,"ties":0},"Theo":{"wins":1,"losses":2,"ties":0},"Joe":{"wins":14,"losses":18,"ties":0},"Jimmy":{"wins":12,"losses":5,"ties":0},"Hunter":{"wins":4,"losses":4,"ties":0},"Nate":{"wins":3,"losses":2,"ties":0},"Davis":{"wins":0,"losses":1,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Riebock":{"wins":1,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":1,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Tom":{"Zach":{"wins":15,"losses":9,"ties":0},"Jason":{"wins":14,"losses":15,"ties":0},"Josh":{"wins":8,"losses":12,"ties":0},"Pasquale":{"wins":11,"losses":13,"ties":0},"Ben":{"wins":11,"losses":18,"ties":0},"Tyler":{"wins":8,"losses":13,"ties":0},"Axel":{"wins":9,"losses":13,"ties":0},"John":{"wins":11,"losses":14,"ties":0},"Forrest":{"wins":21,"losses":9,"ties":0},"Theo":{"wins":5,"losses":1,"ties":0},"Joe":{"wins":13,"losses":17,"ties":1},"Jimmy":{"wins":9,"losses":1,"ties":0},"Hunter":{"wins":4,"losses":5,"ties":0},"Nate":{"wins":3,"losses":3,"ties":0},"Davis":{"wins":1,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Riebock":{"wins":1,"losses":0,"ties":0},"Pavan":{"wins":1,"losses":1,"ties":0},"Stevens":{"wins":1,"losses":0,"ties":0},"Hockett":{"wins":1,"losses":0,"ties":0}},"Josh":{"Zach":{"wins":21,"losses":15,"ties":0},"Jason":{"wins":7,"losses":12,"ties":1},"Tom":{"wins":12,"losses":8,"ties":0},"Pasquale":{"wins":9,"losses":10,"ties":0},"Ben":{"wins":17,"losses":15,"ties":0},"Tyler":{"wins":12,"losses":8,"ties":0},"Axel":{"wins":11,"losses":9,"ties":0},"John":{"wins":9,"losses":6,"ties":0},"Forrest":{"wins":13,"losses":17,"ties":0},"Theo":{"wins":1,"losses":2,"ties":0},"Joe":{"wins":15,"losses":11,"ties":1},"Jimmy":{"wins":11,"losses":2,"ties":0},"Hunter":{"wins":7,"losses":8,"ties":0},"Nate":{"wins":3,"losses":2,"ties":0},"Davis":{"wins":1,"losses":0,"ties":0},"Brooks":{"wins":1,"losses":0,"ties":0},"Riebock":{"wins":1,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":1,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Pasquale":{"Zach":{"wins":8,"losses":8,"ties":1},"Jason":{"wins":5,"losses":12,"ties":0},"Tom":{"wins":13,"losses":11,"ties":0},"Josh":{"wins":10,"losses":9,"ties":0},"Ben":{"wins":11,"losses":15,"ties":0},"Tyler":{"wins":9,"losses":16,"ties":0},"Axel":{"wins":9,"losses":16,"ties":0},"John":{"wins":10,"losses":16,"ties":0},"Forrest":{"wins":10,"losses":9,"ties":0},"Theo":{"wins":1,"losses":1,"ties":0},"Joe":{"wins":9,"losses":8,"ties":0},"Jimmy":{"wins":3,"losses":6,"ties":0},"Hunter":{"wins":2,"losses":4,"ties":0},"Nate":{"wins":2,"losses":4,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Ben":{"Zach":{"wins":13,"losses":17,"ties":0},"Jason":{"wins":15,"losses":5,"ties":0},"Tom":{"wins":18,"losses":11,"ties":0},"Josh":{"wins":15,"losses":17,"ties":0},"Pasquale":{"wins":15,"losses":11,"ties":0},"Tyler":{"wins":13,"losses":8,"ties":0},"Axel":{"wins":11,"losses":11,"ties":0},"John":{"wins":11,"losses":11,"ties":0},"Forrest":{"wins":16,"losses":8,"ties":0},"Theo":{"wins":1,"losses":2,"ties":0},"Joe":{"wins":13,"losses":9,"ties":0},"Jimmy":{"wins":8,"losses":5,"ties":0},"Hunter":{"wins":6,"losses":10,"ties":0},"Nate":{"wins":3,"losses":3,"ties":0},"Davis":{"wins":0,"losses":1,"ties":0},"Brooks":{"wins":1,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":1,"ties":0},"Pavan":{"wins":2,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":1,"ties":0},"Hockett":{"wins":1,"losses":0,"ties":0}},"Tyler":{"Zach":{"wins":10,"losses":11,"ties":0},"Jason":{"wins":13,"losses":17,"ties":0},"Tom":{"wins":13,"losses":8,"ties":0},"Josh":{"wins":8,"losses":12,"ties":0},"Pasquale":{"wins":16,"losses":9,"ties":0},"Ben":{"wins":8,"losses":13,"ties":0},"Axel":{"wins":20,"losses":20,"ties":0},"John":{"wins":10,"losses":10,"ties":0},"Forrest":{"wins":10,"losses":11,"ties":0},"Theo":{"wins":2,"losses":1,"ties":0},"Joe":{"wins":14,"losses":9,"ties":1},"Jimmy":{"wins":8,"losses":9,"ties":0},"Hunter":{"wins":4,"losses":5,"ties":1},"Nate":{"wins":3,"losses":8,"ties":0},"Davis":{"wins":1,"losses":1,"ties":0},"Brooks":{"wins":1,"losses":0,"ties":0},"Riebock":{"wins":1,"losses":0,"ties":0},"Pavan":{"wins":2,"losses":0,"ties":0},"Stevens":{"wins":1,"losses":0,"ties":0},"Hockett":{"wins":2,"losses":0,"ties":0}},"Axel":{"Zach":{"wins":14,"losses":7,"ties":0},"Jason":{"wins":14,"losses":16,"ties":0},"Tom":{"wins":13,"losses":9,"ties":0},"Josh":{"wins":9,"losses":11,"ties":0},"Pasquale":{"wins":16,"losses":9,"ties":0},"Ben":{"wins":11,"losses":11,"ties":0},"Tyler":{"wins":20,"losses":20,"ties":0},"John":{"wins":11,"losses":9,"ties":0},"Forrest":{"wins":11,"losses":10,"ties":0},"Theo":{"wins":1,"losses":2,"ties":0},"Joe":{"wins":14,"losses":10,"ties":1},"Jimmy":{"wins":9,"losses":8,"ties":0},"Hunter":{"wins":3,"losses":6,"ties":0},"Nate":{"wins":4,"losses":6,"ties":0},"Davis":{"wins":1,"losses":1,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Riebock":{"wins":0,"losses":1,"ties":0},"Pavan":{"wins":1,"losses":1,"ties":0},"Stevens":{"wins":0,"losses":1,"ties":0},"Hockett":{"wins":0,"losses":1,"ties":0}},"John":{"Zach":{"wins":12,"losses":6,"ties":0},"Jason":{"wins":8,"losses":7,"ties":0},"Tom":{"wins":14,"losses":11,"ties":0},"Josh":{"wins":6,"losses":9,"ties":0},"Pasquale":{"wins":16,"losses":10,"ties":0},"Ben":{"wins":11,"losses":11,"ties":0},"Tyler":{"wins":10,"losses":10,"ties":0},"Axel":{"wins":9,"losses":11,"ties":0},"Forrest":{"wins":9,"losses":6,"ties":0},"Theo":{"wins":0,"losses":6,"ties":0},"Joe":{"wins":8,"losses":7,"ties":0},"Jimmy":{"wins":7,"losses":3,"ties":0},"Hunter":{"wins":2,"losses":1,"ties":0},"Nate":{"wins":0,"losses":0,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Forrest":{"Zach":{"wins":16,"losses":13,"ties":0},"Jason":{"wins":14,"losses":15,"ties":0},"Tom":{"wins":9,"losses":21,"ties":0},"Josh":{"wins":17,"losses":13,"ties":0},"Pasquale":{"wins":9,"losses":10,"ties":0},"Ben":{"wins":8,"losses":16,"ties":0},"Tyler":{"wins":11,"losses":10,"ties":0},"Axel":{"wins":10,"losses":11,"ties":0},"John":{"wins":6,"losses":9,"ties":0},"Theo":{"wins":1,"losses":2,"ties":0},"Joe":{"wins":15,"losses":22,"ties":0},"Jimmy":{"wins":9,"losses":2,"ties":0},"Hunter":{"wins":6,"losses":3,"ties":0},"Nate":{"wins":3,"losses":3,"ties":0},"Davis":{"wins":0,"losses":1,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Riebock":{"wins":0,"losses":1,"ties":0},"Pavan":{"wins":1,"losses":2,"ties":0},"Stevens":{"wins":2,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":1,"ties":0}},"Theo":{"Zach":{"wins":0,"losses":6,"ties":0},"Jason":{"wins":2,"losses":1,"ties":0},"Tom":{"wins":1,"losses":5,"ties":0},"Josh":{"wins":2,"losses":1,"ties":0},"Pasquale":{"wins":1,"losses":1,"ties":0},"Ben":{"wins":2,"losses":1,"ties":0},"Tyler":{"wins":1,"losses":2,"ties":0},"Axel":{"wins":2,"losses":1,"ties":0},"John":{"wins":6,"losses":0,"ties":0},"Forrest":{"wins":2,"losses":1,"ties":0},"Joe":{"wins":3,"losses":0,"ties":0},"Jimmy":{"wins":1,"losses":0,"ties":0},"Hunter":{"wins":0,"losses":0,"ties":0},"Nate":{"wins":0,"losses":0,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Joe":{"Zach":{"wins":13,"losses":15,"ties":0},"Jason":{"wins":18,"losses":14,"ties":0},"Tom":{"wins":17,"losses":13,"ties":1},"Josh":{"wins":11,"losses":15,"ties":1},"Pasquale":{"wins":8,"losses":9,"ties":0},"Ben":{"wins":9,"losses":13,"ties":0},"Tyler":{"wins":9,"losses":14,"ties":1},"Axel":{"wins":10,"losses":14,"ties":1},"John":{"wins":7,"losses":8,"ties":0},"Forrest":{"wins":22,"losses":15,"ties":0},"Theo":{"wins":0,"losses":3,"ties":0},"Jimmy":{"wins":5,"losses":5,"ties":0},"Hunter":{"wins":4,"losses":5,"ties":0},"Nate":{"wins":3,"losses":3,"ties":0},"Davis":{"wins":0,"losses":1,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Riebock":{"wins":1,"losses":0,"ties":0},"Pavan":{"wins":1,"losses":1,"ties":0},"Stevens":{"wins":0,"losses":1,"ties":0},"Hockett":{"wins":1,"losses":0,"ties":0}},"Jimmy":{"Zach":{"wins":4,"losses":8,"ties":0},"Jason":{"wins":5,"losses":12,"ties":0},"Tom":{"wins":1,"losses":9,"ties":0},"Josh":{"wins":2,"losses":11,"ties":0},"Pasquale":{"wins":6,"losses":3,"ties":0},"Ben":{"wins":5,"losses":8,"ties":0},"Tyler":{"wins":9,"losses":8,"ties":0},"Axel":{"wins":8,"losses":9,"ties":0},"John":{"wins":3,"losses":7,"ties":0},"Forrest":{"wins":2,"losses":9,"ties":0},"Theo":{"wins":0,"losses":1,"ties":0},"Joe":{"wins":5,"losses":5,"ties":0},"Hunter":{"wins":0,"losses":0,"ties":0},"Nate":{"wins":0,"losses":0,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Hunter":{"Zach":{"wins":7,"losses":9,"ties":0},"Jason":{"wins":4,"losses":4,"ties":0},"Tom":{"wins":5,"losses":4,"ties":0},"Josh":{"wins":8,"losses":7,"ties":0},"Pasquale":{"wins":4,"losses":2,"ties":0},"Ben":{"wins":10,"losses":6,"ties":0},"Tyler":{"wins":5,"losses":4,"ties":1},"Axel":{"wins":6,"losses":3,"ties":0},"John":{"wins":1,"losses":2,"ties":0},"Forrest":{"wins":3,"losses":6,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":5,"losses":4,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Nate":{"wins":3,"losses":4,"ties":0},"Davis":{"wins":0,"losses":1,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Riebock":{"wins":0,"losses":1,"ties":0},"Pavan":{"wins":1,"losses":1,"ties":0},"Stevens":{"wins":0,"losses":1,"ties":0},"Hockett":{"wins":0,"losses":2,"ties":0}},"Nate":{"Zach":{"wins":3,"losses":3,"ties":0},"Jason":{"wins":2,"losses":3,"ties":0},"Tom":{"wins":3,"losses":3,"ties":0},"Josh":{"wins":2,"losses":3,"ties":0},"Pasquale":{"wins":4,"losses":2,"ties":0},"Ben":{"wins":3,"losses":3,"ties":0},"Tyler":{"wins":8,"losses":3,"ties":0},"Axel":{"wins":6,"losses":4,"ties":0},"John":{"wins":0,"losses":0,"ties":0},"Forrest":{"wins":3,"losses":3,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":3,"losses":3,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Hunter":{"wins":4,"losses":3,"ties":0},"Davis":{"wins":2,"losses":0,"ties":0},"Brooks":{"wins":1,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":1,"ties":0},"Pavan":{"wins":2,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":1,"ties":0},"Hockett":{"wins":1,"losses":1,"ties":0}},"Davis":{"Zach":{"wins":0,"losses":1,"ties":0},"Jason":{"wins":1,"losses":0,"ties":0},"Tom":{"wins":0,"losses":1,"ties":0},"Josh":{"wins":0,"losses":1,"ties":0},"Pasquale":{"wins":0,"losses":0,"ties":0},"Ben":{"wins":1,"losses":0,"ties":0},"Tyler":{"wins":1,"losses":1,"ties":0},"Axel":{"wins":1,"losses":1,"ties":0},"John":{"wins":0,"losses":0,"ties":0},"Forrest":{"wins":1,"losses":0,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":1,"losses":0,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Hunter":{"wins":1,"losses":0,"ties":0},"Nate":{"wins":0,"losses":2,"ties":0},"Brooks":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Brooks":{"Zach":{"wins":0,"losses":1,"ties":0},"Jason":{"wins":1,"losses":0,"ties":0},"Tom":{"wins":1,"losses":0,"ties":0},"Josh":{"wins":0,"losses":1,"ties":0},"Pasquale":{"wins":0,"losses":0,"ties":0},"Ben":{"wins":0,"losses":1,"ties":0},"Tyler":{"wins":0,"losses":1,"ties":0},"Axel":{"wins":1,"losses":0,"ties":0},"John":{"wins":0,"losses":0,"ties":0},"Forrest":{"wins":1,"losses":0,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":1,"losses":0,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Hunter":{"wins":1,"losses":0,"ties":0},"Nate":{"wins":0,"losses":1,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":1,"losses":0,"ties":0},"Pavan":{"wins":1,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Riebock":{"Zach":{"wins":1,"losses":0,"ties":0},"Jason":{"wins":0,"losses":1,"ties":0},"Tom":{"wins":0,"losses":1,"ties":0},"Josh":{"wins":0,"losses":1,"ties":0},"Pasquale":{"wins":0,"losses":0,"ties":0},"Ben":{"wins":1,"losses":0,"ties":0},"Tyler":{"wins":0,"losses":1,"ties":0},"Axel":{"wins":1,"losses":0,"ties":0},"John":{"wins":0,"losses":0,"ties":0},"Forrest":{"wins":1,"losses":0,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":0,"losses":1,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Hunter":{"wins":1,"losses":0,"ties":0},"Nate":{"wins":1,"losses":0,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Pavan":{"wins":1,"losses":0,"ties":0},"Stevens":{"wins":0,"losses":0,"ties":0},"Hockett":{"wins":0,"losses":0,"ties":0}},"Pavan":{"Zach":{"wins":2,"losses":1,"ties":0},"Jason":{"wins":1,"losses":0,"ties":0},"Tom":{"wins":1,"losses":1,"ties":0},"Josh":{"wins":1,"losses":0,"ties":0},"Pasquale":{"wins":0,"losses":0,"ties":0},"Ben":{"wins":0,"losses":2,"ties":0},"Tyler":{"wins":0,"losses":2,"ties":0},"Axel":{"wins":1,"losses":1,"ties":0},"John":{"wins":0,"losses":0,"ties":0},"Forrest":{"wins":2,"losses":1,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":1,"losses":1,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Hunter":{"wins":1,"losses":1,"ties":0},"Nate":{"wins":0,"losses":2,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":1,"ties":0},"Riebock":{"wins":0,"losses":1,"ties":0},"Stevens":{"wins":1,"losses":1,"ties":0},"Hockett":{"wins":1,"losses":0,"ties":0}},"Stevens":{"Zach":{"wins":2,"losses":0,"ties":0},"Jason":{"wins":0,"losses":0,"ties":0},"Tom":{"wins":0,"losses":1,"ties":0},"Josh":{"wins":0,"losses":0,"ties":0},"Pasquale":{"wins":0,"losses":0,"ties":0},"Ben":{"wins":1,"losses":0,"ties":0},"Tyler":{"wins":0,"losses":1,"ties":0},"Axel":{"wins":1,"losses":0,"ties":0},"John":{"wins":0,"losses":0,"ties":0},"Forrest":{"wins":0,"losses":2,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":1,"losses":0,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Hunter":{"wins":1,"losses":0,"ties":0},"Nate":{"wins":1,"losses":0,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":0,"ties":0},"Pavan":{"wins":1,"losses":1,"ties":0},"Hockett":{"wins":0,"losses":1,"ties":0}},"Hockett":{"Zach":{"wins":0,"losses":1,"ties":0},"Jason":{"wins":0,"losses":0,"ties":0},"Tom":{"wins":0,"losses":1,"ties":0},"Josh":{"wins":0,"losses":0,"ties":0},"Pasquale":{"wins":0,"losses":0,"ties":0},"Ben":{"wins":0,"losses":1,"ties":0},"Tyler":{"wins":0,"losses":2,"ties":0},"Axel":{"wins":1,"losses":0,"ties":0},"John":{"wins":0,"losses":0,"ties":0},"Forrest":{"wins":1,"losses":0,"ties":0},"Theo":{"wins":0,"losses":0,"ties":0},"Joe":{"wins":0,"losses":1,"ties":0},"Jimmy":{"wins":0,"losses":0,"ties":0},"Hunter":{"wins":2,"losses":0,"ties":0},"Nate":{"wins":1,"losses":1,"ties":0},"Davis":{"wins":0,"losses":0,"ties":0},"Brooks":{"wins":0,"losses":0,"ties":0},"Riebock":{"wins":0,"losses":0,"ties":0},"Pavan":{"wins":0,"losses":1,"ties":0},"Stevens":{"wins":1,"losses":0,"ties":0}}},"nemeses":{"Zach":{"nemesis":"Axel","win_pct":0.333},"Jason":{"nemesis":"Zach","win_pct":0.25},"Tom":{"nemesis":"Ben","win_pct":0.379},"Josh":{"nemesis":"Theo","win_pct":0.333},"Pasquale":{"nemesis":"Jason","win_pct":0.294},"Ben":{"nemesis":"Theo","win_pct":0.333},"Tyler":{"nemesis":"Nate","win_pct":0.273},"Axel":{"nemesis":"Theo","win_pct":0.333},"John":{"nemesis":"Theo","win_pct":0.0},"Forrest":{"nemesis":"Tom","win_pct":0.3},"Theo":{"nemesis":"Zach","win_pct":0.0},"Joe":{"nemesis":"Theo","win_pct":0.0},"Jimmy":{"nemesis":"Tom","win_pct":0.1},"Hunter":{"nemesis":"John","win_pct":0.333},"Nate":{"nemesis":"Jason","win_pct":0.4},"Davis":{"nemesis":null,"win_pct":null},"Brooks":{"nemesis":null,"win_pct":null},"Riebock":{"nemesis":null,"win_pct":null},"Pavan":{"nemesis":"Zach","win_pct":0.667},"Stevens":{"nemesis":null,"win_pct":null},"Hockett":{"nemesis":null,"win_pct":null}},"streaks":{"pair_streaks":[{"manager":"Hunter","vs":"Nate","alltime":1,"active_wins":1},{"manager":"Nate","vs":"Hunter","alltime":3,"active_wins":0},{"manager":"Hockett","vs":"Tyler","alltime":0,"active_wins":0},{"manager":"Tyler","vs":"Hockett","alltime":2,"active_wins":2},{"manager":"Forrest","vs":"Zach","alltime":5,"active_wins":0},{"manager":"Zach","vs":"Forrest","alltime":4,"active_wins":4},{"manager":"Pavan","vs":"Stevens","alltime":1,"active_wins":0},{"manager":"Stevens","vs":"Pavan","alltime":1,"active_wins":1},{"manager":"Ben","vs":"Tom","alltime":6,"active_wins":0},{"manager":"Tom","vs":"Ben","alltime":3,"active_wins":1},{"manager":"Hockett","vs":"Hunter","alltime":2,"active_wins":2},{"manager":"Hunter","vs":"Hockett","alltime":0,"active_wins":0},{"manager":"Nate","vs":"Tyler","alltime":3,"active_wins":3},{"manager":"Tyler","vs":"Nate","alltime":1,"active_wins":0},{"manager":"Forrest","vs":"Stevens","alltime":2,"active_wins":2},{"manager":"Stevens","vs":"Forrest","alltime":0,"active_wins":0},{"manager":"Pavan","vs":"Zach","alltime":2,"active_wins":2},{"manager":"Zach","vs":"Pavan","alltime":1,"active_wins":0},{"manager":"Joe","vs":"Tom","alltime":5,"active_wins":0},{"manager":"Tom","vs":"Joe","alltime":3,"active_wins":1},{"manager":"Axel","vs":"Ben","alltime":3,"active_wins":0},{"manager":"Ben","vs":"Axel","alltime":3,"active_wins":1},{"manager":"Hunter","vs":"Tyler","alltime":3,"active_wins":0},{"manager":"Tyler","vs":"Hunter","alltime":1,"active_wins":1},{"manager":"Hockett","vs":"Nate","alltime":1,"active_wins":0},{"manager":"Nate","vs":"Hockett","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Pavan","alltime":1,"active_wins":0},{"manager":"Pavan","vs":"Forrest","alltime":2,"active_wins":2},{"manager":"Stevens","vs":"Zach","alltime":2,"active_wins":2},{"manager":"Zach","vs":"Stevens","alltime":0,"active_wins":0},{"manager":"Axel","vs":"Tom","alltime":5,"active_wins":5},{"manager":"Tom","vs":"Axel","alltime":2,"active_wins":0},{"manager":"Ben","vs":"Joe","alltime":4,"active_wins":0},{"manager":"Joe","vs":"Ben","alltime":2,"active_wins":2},{"manager":"Axel","vs":"Forrest","alltime":4,"active_wins":2},{"manager":"Forrest","vs":"Axel","alltime":4,"active_wins":0},{"manager":"Ben","vs":"Hunter","alltime":5,"active_wins":5},{"manager":"Hunter","vs":"Ben","alltime":9,"active_wins":0},{"manager":"Tom","vs":"Zach","alltime":5,"active_wins":2},{"manager":"Zach","vs":"Tom","alltime":2,"active_wins":0},{"manager":"Joe","vs":"Nate","alltime":2,"active_wins":0},{"manager":"Nate","vs":"Joe","alltime":2,"active_wins":1},{"manager":"Pavan","vs":"Tyler","alltime":0,"active_wins":0},{"manager":"Tyler","vs":"Pavan","alltime":2,"active_wins":2},{"manager":"Hockett","vs":"Stevens","alltime":1,"active_wins":1},{"manager":"Stevens","vs":"Hockett","alltime":0,"active_wins":0},{"manager":"Axel","vs":"Tyler","alltime":3,"active_wins":0},{"manager":"Tyler","vs":"Axel","alltime":4,"active_wins":1},{"manager":"Ben","vs":"Hockett","alltime":1,"active_wins":1},{"manager":"Hockett","vs":"Ben","alltime":0,"active_wins":0},{"manager":"Pavan","vs":"Tom","alltime":1,"active_wins":1},{"manager":"Tom","vs":"Pavan","alltime":1,"active_wins":0},{"manager":"Joe","vs":"Stevens","alltime":0,"active_wins":0},{"manager":"Stevens","vs":"Joe","alltime":1,"active_wins":1},{"manager":"Hunter","vs":"Zach","alltime":2,"active_wins":1},{"manager":"Zach","vs":"Hunter","alltime":3,"active_wins":0},{"manager":"Forrest","vs":"Nate","alltime":2,"active_wins":0},{"manager":"Nate","vs":"Forrest","alltime":2,"active_wins":2},{"manager":"Axel","vs":"Hunter","alltime":3,"active_wins":0},{"manager":"Hunter","vs":"Axel","alltime":6,"active_wins":6},{"manager":"Ben","vs":"Forrest","alltime":3,"active_wins":2},{"manager":"Forrest","vs":"Ben","alltime":1,"active_wins":0},{"manager":"Nate","vs":"Tom","alltime":3,"active_wins":0},{"manager":"Tom","vs":"Nate","alltime":3,"active_wins":3},{"manager":"Joe","vs":"Pavan","alltime":1,"active_wins":0},{"manager":"Pavan","vs":"Joe","alltime":1,"active_wins":1},{"manager":"Hockett","vs":"Zach","alltime":0,"active_wins":0},{"manager":"Zach","vs":"Hockett","alltime":1,"active_wins":1},{"manager":"Stevens","vs":"Tyler","alltime":0,"active_wins":0},{"manager":"Tyler","vs":"Stevens","alltime":1,"active_wins":1},{"manager":"Axel","vs":"Zach","alltime":7,"active_wins":0},{"manager":"Zach","vs":"Axel","alltime":3,"active_wins":3},{"manager":"Ben","vs":"Stevens","alltime":0,"active_wins":0},{"manager":"Stevens","vs":"Ben","alltime":1,"active_wins":1},{"manager":"Tom","vs":"Tyler","alltime":2,"active_wins":2},{"manager":"Tyler","vs":"Tom","alltime":5,"active_wins":0},{"manager":"Hockett","vs":"Joe","alltime":0,"active_wins":0},{"manager":"Joe","vs":"Hockett","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Hunter","alltime":3,"active_wins":1},{"manager":"Hunter","vs":"Forrest","alltime":2,"active_wins":0},{"manager":"Nate","vs":"Pavan","alltime":2,"active_wins":2},{"manager":"Pavan","vs":"Nate","alltime":0,"active_wins":0},{"manager":"Axel","vs":"Stevens","alltime":0,"active_wins":0},{"manager":"Stevens","vs":"Axel","alltime":1,"active_wins":1},{"manager":"Ben","vs":"Nate","alltime":1,"active_wins":1},{"manager":"Nate","vs":"Ben","alltime":2,"active_wins":0},{"manager":"Forrest","vs":"Tom","alltime":2,"active_wins":0},{"manager":"Tom","vs":"Forrest","alltime":7,"active_wins":7},{"manager":"Hunter","vs":"Joe","alltime":3,"active_wins":1},{"manager":"Joe","vs":"Hunter","alltime":2,"active_wins":0},{"manager":"Tyler","vs":"Zach","alltime":4,"active_wins":0},{"manager":"Zach","vs":"Tyler","alltime":4,"active_wins":4},{"manager":"Hockett","vs":"Pavan","alltime":0,"active_wins":0},{"manager":"Pavan","vs":"Hockett","alltime":1,"active_wins":1},{"manager":"Axel","vs":"Hockett","alltime":0,"active_wins":0},{"manager":"Hockett","vs":"Axel","alltime":1,"active_wins":1},{"manager":"Ben","vs":"Pavan","alltime":2,"active_wins":2},{"manager":"Pavan","vs":"Ben","alltime":0,"active_wins":0},{"manager":"Hunter","vs":"Tom","alltime":1,"active_wins":1},{"manager":"Tom","vs":"Hunter","alltime":1,"active_wins":0},{"manager":"Joe","vs":"Zach","alltime":3,"active_wins":0},{"manager":"Zach","vs":"Joe","alltime":3,"active_wins":1},{"manager":"Nate","vs":"Stevens","alltime":0,"active_wins":0},{"manager":"Stevens","vs":"Nate","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Tyler","alltime":4,"active_wins":1},{"manager":"Tyler","vs":"Forrest","alltime":4,"active_wins":0},{"manager":"Axel","vs":"Pavan","alltime":1,"active_wins":1},{"manager":"Pavan","vs":"Axel","alltime":1,"active_wins":0},{"manager":"Nate","vs":"Zach","alltime":2,"active_wins":0},{"manager":"Zach","vs":"Nate","alltime":2,"active_wins":2},{"manager":"Ben","vs":"Tyler","alltime":7,"active_wins":0},{"manager":"Tyler","vs":"Ben","alltime":3,"active_wins":1},{"manager":"Forrest","vs":"Joe","alltime":3,"active_wins":0},{"manager":"Joe","vs":"Forrest","alltime":7,"active_wins":5},{"manager":"Hockett","vs":"Tom","alltime":0,"active_wins":0},{"manager":"Tom","vs":"Hockett","alltime":1,"active_wins":1},{"manager":"Hunter","vs":"Stevens","alltime":0,"active_wins":0},{"manager":"Stevens","vs":"Hunter","alltime":1,"active_wins":1},{"manager":"Axel","vs":"Nate","alltime":3,"active_wins":0},{"manager":"Nate","vs":"Axel","alltime":4,"active_wins":1},{"manager":"Ben","vs":"Zach","alltime":3,"active_wins":1},{"manager":"Zach","vs":"Ben","alltime":6,"active_wins":0},{"manager":"Stevens","vs":"Tom","alltime":0,"active_wins":0},{"manager":"Tom","vs":"Stevens","alltime":1,"active_wins":1},{"manager":"Hunter","vs":"Pavan","alltime":1,"active_wins":1},{"manager":"Pavan","vs":"Hunter","alltime":1,"active_wins":0},{"manager":"Forrest","vs":"Hockett","alltime":0,"active_wins":0},{"manager":"Hockett","vs":"Forrest","alltime":1,"active_wins":1},{"manager":"Axel","vs":"Joe","alltime":5,"active_wins":0},{"manager":"Joe","vs":"Axel","alltime":2,"active_wins":2},{"manager":"Ben","vs":"Riebock","alltime":0,"active_wins":0},{"manager":"Riebock","vs":"Ben","alltime":1,"active_wins":1},{"manager":"Josh","vs":"Pavan","alltime":0,"active_wins":0},{"manager":"Pavan","vs":"Josh","alltime":1,"active_wins":1},{"manager":"Axel","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Brooks","vs":"Axel","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Jason","alltime":3,"active_wins":0},{"manager":"Jason","vs":"Forrest","alltime":5,"active_wins":2},{"manager":"Ben","vs":"Josh","alltime":4,"active_wins":1},{"manager":"Josh","vs":"Ben","alltime":4,"active_wins":0},{"manager":"Pavan","vs":"Riebock","alltime":0,"active_wins":0},{"manager":"Riebock","vs":"Pavan","alltime":1,"active_wins":1},{"manager":"Brooks","vs":"Nate","alltime":0,"active_wins":0},{"manager":"Nate","vs":"Brooks","alltime":1,"active_wins":1},{"manager":"Jason","vs":"Tom","alltime":4,"active_wins":2},{"manager":"Tom","vs":"Jason","alltime":6,"active_wins":0},{"manager":"Hunter","vs":"Jason","alltime":3,"active_wins":0},{"manager":"Jason","vs":"Hunter","alltime":2,"active_wins":1},{"manager":"Axel","vs":"Riebock","alltime":0,"active_wins":0},{"manager":"Riebock","vs":"Axel","alltime":1,"active_wins":1},{"manager":"Ben","vs":"Brooks","alltime":1,"active_wins":1},{"manager":"Brooks","vs":"Ben","alltime":0,"active_wins":0},{"manager":"Joe","vs":"Josh","alltime":5,"active_wins":0},{"manager":"Josh","vs":"Joe","alltime":4,"active_wins":1},{"manager":"Brooks","vs":"Zach","alltime":0,"active_wins":0},{"manager":"Zach","vs":"Brooks","alltime":1,"active_wins":1},{"manager":"Joe","vs":"Tyler","alltime":3,"active_wins":3},{"manager":"Tyler","vs":"Joe","alltime":7,"active_wins":0},{"manager":"Josh","vs":"Nate","alltime":2,"active_wins":1},{"manager":"Nate","vs":"Josh","alltime":2,"active_wins":0},{"manager":"Jason","vs":"Riebock","alltime":1,"active_wins":1},{"manager":"Riebock","vs":"Jason","alltime":0,"active_wins":0},{"manager":"Axel","vs":"Josh","alltime":3,"active_wins":0},{"manager":"Josh","vs":"Axel","alltime":5,"active_wins":1},{"manager":"Jason","vs":"Tyler","alltime":4,"active_wins":1},{"manager":"Tyler","vs":"Jason","alltime":5,"active_wins":0},{"manager":"Riebock","vs":"Zach","alltime":1,"active_wins":1},{"manager":"Zach","vs":"Riebock","alltime":0,"active_wins":0},{"manager":"Brooks","vs":"Joe","alltime":1,"active_wins":1},{"manager":"Joe","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Joe","vs":"Riebock","alltime":1,"active_wins":1},{"manager":"Riebock","vs":"Joe","alltime":0,"active_wins":0},{"manager":"Brooks","vs":"Pavan","alltime":1,"active_wins":1},{"manager":"Pavan","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Jason","vs":"Josh","alltime":4,"active_wins":0},{"manager":"Josh","vs":"Jason","alltime":3,"active_wins":1},{"manager":"Jason","vs":"Zach","alltime":2,"active_wins":2},{"manager":"Zach","vs":"Jason","alltime":7,"active_wins":0},{"manager":"Brooks","vs":"Tom","alltime":1,"active_wins":1},{"manager":"Tom","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Josh","vs":"Riebock","alltime":1,"active_wins":1},{"manager":"Riebock","vs":"Josh","alltime":0,"active_wins":0},{"manager":"Jason","vs":"Joe","alltime":4,"active_wins":1},{"manager":"Joe","vs":"Jason","alltime":6,"active_wins":0},{"manager":"Hunter","vs":"Riebock","alltime":0,"active_wins":0},{"manager":"Riebock","vs":"Hunter","alltime":1,"active_wins":1},{"manager":"Brooks","vs":"Josh","alltime":0,"active_wins":0},{"manager":"Josh","vs":"Brooks","alltime":1,"active_wins":1},{"manager":"Ben","vs":"Jason","alltime":6,"active_wins":0},{"manager":"Jason","vs":"Ben","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Riebock","alltime":0,"active_wins":0},{"manager":"Riebock","vs":"Forrest","alltime":1,"active_wins":1},{"manager":"Brooks","vs":"Tyler","alltime":0,"active_wins":0},{"manager":"Tyler","vs":"Brooks","alltime":1,"active_wins":1},{"manager":"Josh","vs":"Tom","alltime":6,"active_wins":6},{"manager":"Tom","vs":"Josh","alltime":3,"active_wins":0},{"manager":"Jason","vs":"Pavan","alltime":0,"active_wins":0},{"manager":"Pavan","vs":"Jason","alltime":1,"active_wins":1},{"manager":"Brooks","vs":"Hunter","alltime":1,"active_wins":1},{"manager":"Hunter","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Josh","vs":"Tyler","alltime":5,"active_wins":0},{"manager":"Tyler","vs":"Josh","alltime":2,"active_wins":2},{"manager":"Nate","vs":"Riebock","alltime":0,"active_wins":0},{"manager":"Riebock","vs":"Nate","alltime":1,"active_wins":1},{"manager":"Hunter","vs":"Josh","alltime":4,"active_wins":0},{"manager":"Josh","vs":"Hunter","alltime":3,"active_wins":3},{"manager":"Jason","vs":"Nate","alltime":3,"active_wins":3},{"manager":"Nate","vs":"Jason","alltime":2,"active_wins":0},{"manager":"Brooks","vs":"Riebock","alltime":1,"active_wins":1},{"manager":"Riebock","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Axel","vs":"Jason","alltime":4,"active_wins":0},{"manager":"Jason","vs":"Axel","alltime":4,"active_wins":2},{"manager":"Brooks","vs":"Forrest","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Josh","vs":"Zach","alltime":5,"active_wins":0},{"manager":"Zach","vs":"Josh","alltime":3,"active_wins":1},{"manager":"Riebock","vs":"Tom","alltime":0,"active_wins":0},{"manager":"Tom","vs":"Riebock","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Josh","alltime":4,"active_wins":1},{"manager":"Josh","vs":"Forrest","alltime":3,"active_wins":0},{"manager":"Brooks","vs":"Jason","alltime":1,"active_wins":1},{"manager":"Jason","vs":"Brooks","alltime":0,"active_wins":0},{"manager":"Riebock","vs":"Tyler","alltime":0,"active_wins":0},{"manager":"Tyler","vs":"Riebock","alltime":1,"active_wins":1},{"manager":"Axel","vs":"Davis","alltime":1,"active_wins":0},{"manager":"Davis","vs":"Axel","alltime":1,"active_wins":1},{"manager":"Davis","vs":"Tyler","alltime":1,"active_wins":0},{"manager":"Tyler","vs":"Davis","alltime":1,"active_wins":1},{"manager":"Davis","vs":"Nate","alltime":0,"active_wins":0},{"manager":"Nate","vs":"Davis","alltime":2,"active_wins":2},{"manager":"Davis","vs":"Tom","alltime":0,"active_wins":0},{"manager":"Tom","vs":"Davis","alltime":1,"active_wins":1},{"manager":"Davis","vs":"Forrest","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Davis","alltime":0,"active_wins":0},{"manager":"Davis","vs":"Josh","alltime":0,"active_wins":0},{"manager":"Josh","vs":"Davis","alltime":1,"active_wins":1},{"manager":"Davis","vs":"Zach","alltime":0,"active_wins":0},{"manager":"Zach","vs":"Davis","alltime":1,"active_wins":1},{"manager":"Davis","vs":"Joe","alltime":1,"active_wins":1},{"manager":"Joe","vs":"Davis","alltime":0,"active_wins":0},{"manager":"Davis","vs":"Jason","alltime":1,"active_wins":1},{"manager":"Jason","vs":"Davis","alltime":0,"active_wins":0},{"manager":"Ben","vs":"Davis","alltime":0,"active_wins":0},{"manager":"Davis","vs":"Ben","alltime":1,"active_wins":1},{"manager":"Davis","vs":"Hunter","alltime":1,"active_wins":1},{"manager":"Hunter","vs":"Davis","alltime":0,"active_wins":0},{"manager":"Axel","vs":"Pasquale","alltime":5,"active_wins":0},{"manager":"Pasquale","vs":"Axel","alltime":2,"active_wins":2},{"manager":"Nate","vs":"Pasquale","alltime":3,"active_wins":1},{"manager":"Pasquale","vs":"Nate","alltime":2,"active_wins":0},{"manager":"Pasquale","vs":"Tyler","alltime":2,"active_wins":1},{"manager":"Tyler","vs":"Pasquale","alltime":4,"active_wins":0},{"manager":"Ben","vs":"Pasquale","alltime":5,"active_wins":4},{"manager":"Pasquale","vs":"Ben","alltime":4,"active_wins":0},{"manager":"Joe","vs":"Pasquale","alltime":4,"active_wins":0},{"manager":"Pasquale","vs":"Joe","alltime":2,"active_wins":1},{"manager":"Forrest","vs":"Pasquale","alltime":4,"active_wins":0},{"manager":"Pasquale","vs":"Forrest","alltime":4,"active_wins":2},{"manager":"Josh","vs":"Pasquale","alltime":2,"active_wins":0},{"manager":"Pasquale","vs":"Josh","alltime":3,"active_wins":1},{"manager":"Pasquale","vs":"Tom","alltime":3,"active_wins":2},{"manager":"Tom","vs":"Pasquale","alltime":3,"active_wins":0},{"manager":"Jason","vs":"Pasquale","alltime":7,"active_wins":3},{"manager":"Pasquale","vs":"Jason","alltime":4,"active_wins":0},{"manager":"Pasquale","vs":"Zach","alltime":2,"active_wins":1},{"manager":"Zach","vs":"Pasquale","alltime":2,"active_wins":0},{"manager":"Hunter","vs":"Pasquale","alltime":2,"active_wins":2},{"manager":"Pasquale","vs":"Hunter","alltime":1,"active_wins":0},{"manager":"John","vs":"Tyler","alltime":3,"active_wins":0},{"manager":"Tyler","vs":"John","alltime":3,"active_wins":1},{"manager":"John","vs":"Pasquale","alltime":4,"active_wins":2},{"manager":"Pasquale","vs":"John","alltime":4,"active_wins":0},{"manager":"Axel","vs":"John","alltime":4,"active_wins":2},{"manager":"John","vs":"Axel","alltime":5,"active_wins":0},{"manager":"Forrest","vs":"John","alltime":3,"active_wins":1},{"manager":"John","vs":"Forrest","alltime":4,"active_wins":0},{"manager":"Hunter","vs":"John","alltime":1,"active_wins":1},{"manager":"John","vs":"Hunter","alltime":2,"active_wins":0},{"manager":"John","vs":"Tom","alltime":4,"active_wins":0},{"manager":"Tom","vs":"John","alltime":3,"active_wins":3},{"manager":"Jason","vs":"John","alltime":3,"active_wins":0},{"manager":"John","vs":"Jason","alltime":2,"active_wins":2},{"manager":"Ben","vs":"John","alltime":4,"active_wins":0},{"manager":"John","vs":"Ben","alltime":5,"active_wins":2},{"manager":"John","vs":"Zach","alltime":11,"active_wins":0},{"manager":"Zach","vs":"John","alltime":4,"active_wins":2},{"manager":"John","vs":"Josh","alltime":1,"active_wins":0},{"manager":"Josh","vs":"John","alltime":2,"active_wins":1},{"manager":"Joe","vs":"John","alltime":3,"active_wins":1},{"manager":"John","vs":"Joe","alltime":3,"active_wins":0},{"manager":"Ben","vs":"Jimmy","alltime":4,"active_wins":3},{"manager":"Jimmy","vs":"Ben","alltime":4,"active_wins":0},{"manager":"Jimmy","vs":"Josh","alltime":1,"active_wins":0},{"manager":"Josh","vs":"Jimmy","alltime":6,"active_wins":2},{"manager":"Jimmy","vs":"Zach","alltime":1,"active_wins":1},{"manager":"Zach","vs":"Jimmy","alltime":4,"active_wins":0},{"manager":"Axel","vs":"Jimmy","alltime":3,"active_wins":1},{"manager":"Jimmy","vs":"Axel","alltime":3,"active_wins":0},{"manager":"Jimmy","vs":"John","alltime":1,"active_wins":1},{"manager":"John","vs":"Jimmy","alltime":3,"active_wins":0},{"manager":"Jimmy","vs":"Joe","alltime":4,"active_wins":0},{"manager":"Joe","vs":"Jimmy","alltime":3,"active_wins":3},{"manager":"Jimmy","vs":"Tom","alltime":1,"active_wins":1},{"manager":"Tom","vs":"Jimmy","alltime":9,"active_wins":0},{"manager":"Jimmy","vs":"Tyler","alltime":5,"active_wins":0},{"manager":"Tyler","vs":"Jimmy","alltime":4,"active_wins":3},{"manager":"Forrest","vs":"Jimmy","alltime":6,"active_wins":3},{"manager":"Jimmy","vs":"Forrest","alltime":1,"active_wins":0},{"manager":"Jason","vs":"Jimmy","alltime":3,"active_wins":3},{"manager":"Jimmy","vs":"Jason","alltime":2,"active_wins":0},{"manager":"Jimmy","vs":"Pasquale","alltime":3,"active_wins":0},{"manager":"Pasquale","vs":"Jimmy","alltime":1,"active_wins":1},{"manager":"John","vs":"Theo","alltime":0,"active_wins":0},{"manager":"Theo","vs":"John","alltime":6,"active_wins":6},{"manager":"Theo","vs":"Zach","alltime":0,"active_wins":0},{"manager":"Zach","vs":"Theo","alltime":6,"active_wins":6},{"manager":"Theo","vs":"Tom","alltime":1,"active_wins":1},{"manager":"Tom","vs":"Theo","alltime":5,"active_wins":0},{"manager":"Jimmy","vs":"Theo","alltime":0,"active_wins":0},{"manager":"Theo","vs":"Jimmy","alltime":1,"active_wins":1},{"manager":"Forrest","vs":"Theo","alltime":1,"active_wins":1},{"manager":"Theo","vs":"Forrest","alltime":2,"active_wins":0},{"manager":"Jason","vs":"Theo","alltime":1,"active_wins":0},{"manager":"Theo","vs":"Jason","alltime":1,"active_wins":1},{"manager":"Joe","vs":"Theo","alltime":0,"active_wins":0},{"manager":"Theo","vs":"Joe","alltime":3,"active_wins":3},{"manager":"Theo","vs":"Tyler","alltime":1,"active_wins":0},{"manager":"Tyler","vs":"Theo","alltime":2,"active_wins":2},{"manager":"Axel","vs":"Theo","alltime":1,"active_wins":0},{"manager":"Theo","vs":"Axel","alltime":2,"active_wins":2},{"manager":"Ben","vs":"Theo","alltime":1,"active_wins":0},{"manager":"Theo","vs":"Ben","alltime":1,"active_wins":1},{"manager":"Josh","vs":"Theo","alltime":1,"active_wins":1},{"manager":"Theo","vs":"Josh","alltime":2,"active_wins":0},{"manager":"Pasquale","vs":"Theo","alltime":1,"active_wins":1},{"manager":"Theo","vs":"Pasquale","alltime":1,"active_wins":0}]}},"records":{"high_week":{"score":160.08,"manager":"Zach","team":"Zach","season":2021,"week":5},"low_week":{"score":27.0,"manager":"Tyler","team":"Tyler","season":2007,"week":4},"blowout":{"margin":118.66,"winner":"Ben","winner_team":"Ben","loser":"Tyler","loser_team":"Tyler","score_w":157.48,"score_l":38.82,"season":2021,"week":11},"closest":{"margin":0.0,"winner":"Axel","winner_team":"Axel","loser":"Joe","loser_team":"Joe","score_w":70.0,"score_l":70.0,"season":2005,"week":1},"best_season":{"manager":"Zach","team":"ZachCute","wins":12,"losses":2,"pf":1496.72,"win_pct":0.857,"season":2023},"worst_season":{"manager":"Jason","team":"Team BJ","wins":1,"losses":13,"pf":988.5,"win_pct":0.071,"season":2012},"streaks":{"win":{"manager":"Tyler","length":9},"loss":{"manager":"Jason","length":12}}},"active_managers":["Zach","Jason","Tom","Josh","Pasquale","Ben","Tyler","Axel","John","Forrest","Theo","Joe"]};
+const ACTIVE = new Set(DATA.active_managers);
+
+function activeFilter(selectId) {
+  const sel = document.getElementById(selectId);
+  return sel && sel.value === 'active' ? ACTIVE : null;
+}
+
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Standings ──────────────────────────────────────────────────────────────
+(function buildStandings() {
+  // Build season lookup: year → manager → season_record
+  const seasonLookup = {};
+  DATA.alltime.forEach(r => {
+    r.season_records.forEach(sr => {
+      if (!seasonLookup[sr.season]) seasonLookup[sr.season] = {};
+      seasonLookup[sr.season][r.manager] = {...sr, manager: r.manager};
+    });
+  });
+
+  // Populate season dropdown (most recent first, exclude seasons with no games)
+  const seasons = Object.keys(seasonLookup)
+    .map(Number)
+    .filter(y => Object.values(seasonLookup[y]).some(sr => sr.wins + sr.losses > 0))
+    .sort((a, b) => b - a);
+  const seasonSel = document.getElementById('season-filter');
+  seasons.forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    seasonSel.appendChild(opt);
+  });
+
+  let sortKey = 'win_pct', sortDir = -1;
+
+  function renderExpandRow(r, ncols) {
+    const tr = document.createElement('tr');
+    tr.className = 'expand-row';
+    function finishBadge(s) {
+      if (s.champion) return '🏆';
+      if (s.rank === 2) return '🥈';
+      if (s.rank === 3) return '🥉';
+      return s.rank > 0 ? '#' + s.rank : '—';
+    }
+    function poCell(s) {
+      if (s.po_wins === null) return '<td class="neutral">—</td>';
+      return `<td>${s.po_wins}–${s.po_losses}</td>`;
+    }
+    const seasonRows = [...r.season_records].reverse().filter(s => s.wins + s.losses > 0).map(s => `
+      <tr>
+        <td>${s.season}</td>
+        <td class="win">${s.wins}</td>
+        <td class="loss">${s.losses}</td>
+        ${s.ties > 0 ? `<td class="neutral">${s.ties}</td>` : '<td class="neutral">—</td>'}
+        <td>${s.pf.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+        <td class="neutral">${s.pa.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+        ${poCell(s)}
+        <td>${finishBadge(s)}</td>
+      </tr>`).join('');
+    tr.innerHTML = `<td colspan="${ncols}"><div class="expand-inner">
+      <table>
+        <thead><tr><th>Season</th><th>RS W</th><th>RS L</th><th>T</th><th>PF</th><th>PA</th><th>Playoffs</th><th>Finish</th></tr></thead>
+        <tbody>${seasonRows}</tbody>
+      </table></div></td>`;
+    return tr;
+  }
+
+  function renderRow(r, i, ncols) {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    const trophy = r.titles > 0 ? ` <span style="color:#ffd700">${'🏆'.repeat(r.titles)}</span>` : '';
+    tr.innerHTML = `
+      <td class="rank">${i + 1}</td>
+      <td><span class="mgr-link"><strong>${r.manager}</strong></span>${trophy}</td>
+      <td class="neutral">${r.seasons}</td>
+      <td class="win">${r.wins}</td>
+      <td class="loss">${r.losses}</td>
+      <td class="neutral">${r.ties > 0 ? r.ties : '—'}</td>
+      <td class="pct">${(r.win_pct*100).toFixed(1)}%</td>
+      <td>${r.pf.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+      <td class="neutral">${r.pa.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+      <td class="neutral">${r.playoff_apps > 0 ? r.playoff_apps : '—'}</td>
+      <td>${r.titles > 0 ? r.titles : '—'}</td>
+    `;
+    tr.addEventListener('click', () => {
+      const next = tr.nextElementSibling;
+      if (next && next.classList.contains('expand-row')) {
+        next.remove();
+      } else {
+        tr.insertAdjacentElement('afterend', renderExpandRow(r, ncols));
+      }
+    });
+    return tr;
+  }
+
+  window.renderTable = function() {
+    const flt = activeFilter('standings-filter');
+    const seasonVal = document.getElementById('season-filter').value;
+    const isSeason = seasonVal !== 'all';
+    const thead = document.querySelector('#standings-tbl thead tr');
+
+    if (isSeason) {
+      // Single-season mode: swap column headers
+      thead.cells[2].textContent = 'Team';
+      thead.cells[9].textContent = 'Made PO';
+      thead.cells[10].textContent = 'Finish';
+      // Disable sort on those two cols
+      thead.cells[2].classList.remove('sortable');
+      thead.cells[9].classList.remove('sortable');
+      thead.cells[10].classList.remove('sortable');
+
+      const srMap = seasonLookup[parseInt(seasonVal)] || {};
+      const rows = Object.values(srMap)
+        .filter(sr => sr.wins + sr.losses > 0)
+        .filter(sr => !flt || flt.has(sr.manager))
+        .sort((a, b) => (a.rank || 99) - (b.rank || 99) || b.pf - a.pf);
+
+      const tbody = document.querySelector('#standings-tbl tbody');
+      tbody.innerHTML = '';
+      rows.forEach((sr, i) => {
+        const tr = document.createElement('tr');
+        function finishBadge(sr) {
+          if (sr.champion) return '🏆';
+          if (sr.rank === 2) return '🥈';
+          if (sr.rank === 3) return '🥉';
+          return sr.rank > 0 ? '#' + sr.rank : '—';
+        }
+        tr.innerHTML = `
+          <td class="rank">${i + 1}</td>
+          <td><strong>${sr.manager}</strong></td>
+          <td class="neutral" style="font-size:12px">${sr.team_name}</td>
+          <td class="win">${sr.wins}</td>
+          <td class="loss">${sr.losses}</td>
+          <td class="neutral">${sr.ties > 0 ? sr.ties : '—'}</td>
+          <td class="pct">${(sr.wins/(sr.wins+sr.losses+(sr.ties||0))*100).toFixed(1)}%</td>
+          <td>${sr.pf.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+          <td class="neutral">${sr.pa.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+          <td class="neutral">${sr.playoff_app ? '✓' : '—'}</td>
+          <td>${finishBadge(sr)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } else {
+      // All-time mode: restore column headers
+      thead.cells[2].textContent = 'Seasons';
+      thead.cells[9].textContent = 'Playoffs';
+      thead.cells[10].textContent = 'Titles';
+      thead.cells[2].classList.add('sortable');
+      thead.cells[9].classList.add('sortable');
+      thead.cells[10].classList.add('sortable');
+
+      const sorted = [...DATA.alltime]
+        .filter(r => !flt || flt.has(r.manager))
+        .sort((a, b) => {
+          const av = a[sortKey], bv = b[sortKey];
+          return typeof av === 'string' ? av.localeCompare(bv) * sortDir : (av - bv) * sortDir;
+        });
+      const tbody = document.querySelector('#standings-tbl tbody');
+      const ncols = document.querySelectorAll('#standings-tbl thead th').length;
+      tbody.innerHTML = '';
+      sorted.forEach((r, i) => tbody.appendChild(renderRow(r, i, ncols)));
+    }
+  };
+
+  document.querySelectorAll('#standings-tbl th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (sortKey === key) { sortDir *= -1; }
+      else { sortKey = key; sortDir = key === 'manager' ? 1 : -1; }
+      document.querySelectorAll('#standings-tbl th').forEach(t => t.classList.remove('sort-asc','sort-desc'));
+      th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+      renderTable();
+    });
+  });
+
+  renderTable();
+})();
+
+// ── Champions ──────────────────────────────────────────────────────────────
+(function buildChampions() {
+  const grid = document.getElementById('champ-grid');
+  DATA.champions.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'champ-card';
+    div.innerHTML = `
+      <div class="champ-year">🏆 ${c.season} Champion</div>
+      <div class="champ-manager">${c.manager}</div>
+      <div class="champ-team">${c.team_name}</div>
+      <div class="champ-record">${c.wins}–${c.losses} &nbsp;·&nbsp; ${c.pf.toFixed(1)} pts</div>
+    `;
+    grid.appendChild(div);
+  });
+})();
+
+// ── Head-to-Head ───────────────────────────────────────────────────────────
+function renderH2H() {
+  const flt = activeFilter('h2h-filter');
+  const {managers: allMgrs, matrix, nemeses, streaks} = DATA.h2h;
+  const managers = flt ? allMgrs.filter(m => flt.has(m)) : allMgrs;
+
+  // Matrix
+  const tbl = document.getElementById('h2h-tbl');
+  tbl.innerHTML = '';
+  const hdr = document.createElement('tr');
+  hdr.innerHTML = '<th></th>' + managers.map(m => `<th title="${m}">${m.split(' ')[0]}</th>`).join('');
+  tbl.appendChild(hdr);
+  managers.forEach(row => {
+    const tr = document.createElement('tr');
+    let cells = `<td class="row-label" title="${row}">${row}</td>`;
+    managers.forEach(col => {
+      if (row === col) { cells += '<td class="self">·</td>'; return; }
+      const rec = matrix[row][col];
+      const w = rec.wins, l = rec.losses, t = rec.ties || 0, tot = w + l + t;
+      if (tot === 0) { cells += '<td class="even">—</td>'; return; }
+      const pct = w / tot;
+      let cls = 'even';
+      if (pct >= .7) cls = 'dominant';
+      else if (pct > .5) cls = 'winning';
+      else if (pct <= .3) cls = 'dominated';
+      else if (pct < .5) cls = 'losing';
+      const lbl = t > 0 ? `${w}-${l}-${t}` : `${w}-${l}`;
+      cells += `<td class="${cls}" title="${row} vs ${col}: ${lbl}">${lbl}</td>`;
+    });
+    tr.innerHTML = cells;
+    tbl.appendChild(tr);
+  });
+
+  // Nemesis — recompute from matrix against visible opponents only
+  const ntbody = document.querySelector('#nemesis-tbl tbody');
+  ntbody.innerHTML = '';
+  managers.forEach(m => {
+    let worstOpp = null, worstPct = 1.1;
+    managers.forEach(opp => {
+      if (opp === m) return;
+      const rec = matrix[m][opp];
+      if (!rec) return;
+      const tot = rec.wins + rec.losses + (rec.ties || 0);
+      if (tot < 3) return;
+      const pct = rec.wins / tot;
+      if (pct < worstPct) { worstPct = pct; worstOpp = opp; }
+    });
+    if (!worstOpp) return;
+    const rec = matrix[m][worstOpp];
+    const tr = document.createElement('tr');
+    tr.className = 'nemesis-row';
+    tr.innerHTML = `
+      <td>${m}</td>
+      <td style="color:#f85149">${worstOpp}</td>
+      <td class="loss">${rec.wins}–${rec.losses}${rec.ties ? `–${rec.ties}` : ''} (${(worstPct*100).toFixed(0)}% win rate)</td>
+    `;
+    ntbody.appendChild(tr);
+  });
+
+  // Streaks — recompute from pair_streaks after applying active filter
+  const pairs = DATA.h2h.streaks.pair_streaks.filter(
+    p => !flt || (flt.has(p.manager) && flt.has(p.vs))
+  );
+
+  // Per-manager: best alltime and active streak among filtered opponents
+  const pmBest = {}, pmActive = {};
+  pairs.forEach(p => {
+    if (!pmBest[p.manager] || p.alltime > pmBest[p.manager].length) {
+      pmBest[p.manager] = {length: p.alltime, opps: [p.vs]};
+    } else if (p.alltime === pmBest[p.manager].length && !pmBest[p.manager].opps.includes(p.vs)) {
+      pmBest[p.manager].opps.push(p.vs);
+    }
+    if (p.active_wins >= 2) {
+      if (!pmActive[p.manager] || p.active_wins > pmActive[p.manager].length) {
+        pmActive[p.manager] = {length: p.active_wins, opps: [p.vs]};
+      } else if (p.active_wins === pmActive[p.manager].length && !pmActive[p.manager].opps.includes(p.vs)) {
+        pmActive[p.manager].opps.push(p.vs);
+      }
+    }
+  });
+
+  function oppLabel(rec) {
+    if (!rec) return '—';
+    if (rec.opps.length === 1) return rec.opps[0];
+    return `${rec.opps.length} opponents (${rec.opps.join(', ')})`;
+  }
+
+  const pmBody = document.querySelector('#streak-mgr-tbl tbody');
+  pmBody.innerHTML = '';
+  managers.forEach(m => {
+    const best = pmBest[m], act = pmActive[m];
+    if (!best) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${m}</strong></td>
+      <td>${best.length}</td>
+      <td class="neutral">${oppLabel(best)}</td>
+      <td>${act ? act.length : '—'}</td>
+      <td class="neutral">${act ? oppLabel(act) : '—'}</td>
+    `;
+    pmBody.appendChild(tr);
+  });
+
+  // Top 5 all-time from filtered pairs
+  const top_alltime = [...pairs].sort((a,b) => b.alltime - a.alltime).slice(0,5);
+  const atBody = document.querySelector('#streak-alltime-tbl tbody');
+  atBody.innerHTML = '';
+  top_alltime.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${s.manager}</strong></td><td class="neutral">${s.vs}</td><td style="font-weight:700">${s.alltime}</td>`;
+    atBody.appendChild(tr);
+  });
+  if (!top_alltime.length) atBody.innerHTML = '<tr><td colspan="3" class="neutral">No data</td></tr>';
+
+  // Top 5 active from filtered pairs
+  const top_active = [...pairs].filter(p => p.active_wins >= 2).sort((a,b) => b.active_wins - a.active_wins).slice(0,5);
+  const acBody = document.querySelector('#streak-active-tbl tbody');
+  acBody.innerHTML = '';
+  top_active.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${s.manager}</strong></td><td class="neutral">${s.vs}</td><td style="font-weight:700;color:#3fb950">${s.active_wins}</td>`;
+    acBody.appendChild(tr);
+  });
+  if (!top_active.length) acBody.innerHTML = '<tr><td colspan="3" class="neutral">No active streaks ≥ 2</td></tr>';
+}
+renderH2H();
+
+// ── Records ────────────────────────────────────────────────────────────────
+(function buildRecords() {
+  const rec = DATA.records;
+  const grid = document.getElementById('records-grid');
+
+  function card(label, value, sub, detail) {
+    const d = document.createElement('div');
+    d.className = 'rec-card';
+    d.innerHTML = `
+      <div class="rec-label">${label}</div>
+      <div class="rec-value">${value}</div>
+      ${sub ? `<div class="rec-sub">${sub}</div>` : ''}
+      ${detail ? `<div class="rec-detail">${detail}</div>` : ''}
+    `;
+    grid.appendChild(d);
+  }
+
+  if (rec.high_week) {
+    const h = rec.high_week;
+    card('Highest Single-Week Score', h.score.toFixed(2) + ' pts',
+      h.manager, `${h.team} · Week ${h.week}, ${h.season}`);
+  }
+  if (rec.low_week) {
+    const l = rec.low_week;
+    card('Lowest Single-Week Score', l.score.toFixed(2) + ' pts',
+      l.manager, `${l.team} · Week ${l.week}, ${l.season}`);
+  }
+  if (rec.blowout) {
+    const b = rec.blowout;
+    card('Biggest Blowout', '+' + b.margin.toFixed(2) + ' margin',
+      b.winner + ' def. ' + b.loser,
+      `${b.score_w.toFixed(2)}–${b.score_l.toFixed(2)} · Week ${b.week}, ${b.season}`);
+  }
+  if (rec.closest) {
+    const c = rec.closest;
+    card('Closest Game', c.margin.toFixed(2) + ' margin',
+      c.winner + ' def. ' + c.loser,
+      `${c.score_w.toFixed(2)}–${c.score_l.toFixed(2)} · Week ${c.week}, ${c.season}`);
+  }
+  if (rec.best_season) {
+    const b = rec.best_season;
+    card('Best Single Season', b.wins + '–' + b.losses,
+      b.manager, `${b.team} · ${b.season} · ${b.pf.toFixed(1)} pts`);
+  }
+  if (rec.worst_season) {
+    const w = rec.worst_season;
+    card('Worst Single Season', w.wins + '–' + w.losses,
+      w.manager, `${w.team} · ${w.season} · ${w.pf.toFixed(1)} pts`);
+  }
+  if (rec.streaks.win.manager) {
+    const s = rec.streaks.win;
+    card('Longest Win Streak', s.length + ' wins', s.manager);
+  }
+  if (rec.streaks.loss.manager) {
+    const s = rec.streaks.loss;
+    card('Longest Losing Streak', s.length + ' losses', s.manager);
+  }
+})();
+</script>
+</body>
+</html>

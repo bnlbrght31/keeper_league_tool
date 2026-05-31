@@ -235,6 +235,31 @@ def _annotate_matchups(raw_matchups, winners_bracket, losers_bracket,
     return finalized
 
 
+def _recompute_h2h_record(standings, regular_raw_matchups):
+    """
+    Replace W/L/T on each team with counts derived from actual H2H matchup data.
+    Sleeper includes median-game results in settings.wins/losses when that feature
+    is enabled, so we recompute from matchups (which already exclude median games).
+    """
+    record = {t["roster_id"]: [0, 0, 0] for t in standings}  # [wins, losses, ties]
+    for m in regular_raw_matchups:
+        ra, rb = m["roster_id_a"], m["roster_id_b"]
+        if ra not in record or rb not in record:
+            continue
+        if m["score_a"] > m["score_b"]:
+            record[ra][0] += 1
+            record[rb][1] += 1
+        elif m["score_b"] > m["score_a"]:
+            record[rb][0] += 1
+            record[ra][1] += 1
+        else:
+            record[ra][2] += 1
+            record[rb][2] += 1
+    for t in standings:
+        w, l, tie = record.get(t["roster_id"], [t["wins"], t["losses"], t["ties"]])
+        t["wins"], t["losses"], t["ties"] = w, l, tie
+
+
 def fetch_all_seasons(league_id, verbose=True):
     """
     Walk the previous_league_id chain from the given league back to the first season.
@@ -267,12 +292,22 @@ def fetch_all_seasons(league_id, verbose=True):
         winners_bracket = _get_winners_bracket(current_id)
         losers_bracket = _get_losers_bracket(current_id)
 
-        # Override regular-season ranks with final playoff bracket positions
-        _apply_bracket_ranks(standings, winners_bracket, losers_bracket)
-
         roster_to_manager = {t["roster_id"]: t["manager"] for t in standings}
 
         raw_matchups = _get_weekly_matchups(current_id, start_week, end_week)
+
+        # Recompute W/L/T from H2H matchups only — excludes median-game results
+        # that Sleeper folds into settings.wins/losses when that feature is on
+        regular_raw = [m for m in raw_matchups if m["week"] < playoff_week_start]
+        _recompute_h2h_record(standings, regular_raw)
+
+        # Re-sort by updated record before applying bracket ranks
+        standings.sort(key=lambda t: (-t["wins"], -t["pf"]))
+        for i, t in enumerate(standings):
+            t["rank"] = i + 1
+
+        # Override regular-season ranks with final playoff bracket positions
+        _apply_bracket_ranks(standings, winners_bracket, losers_bracket)
         all_matchups = _annotate_matchups(
             raw_matchups, winners_bracket, losers_bracket,
             playoff_week_start, roster_to_manager, current_id,
@@ -293,7 +328,7 @@ def fetch_all_seasons(league_id, verbose=True):
             "playoff_start_week": playoff_week_start,
         })
 
-        current_id = str(prev_id) if prev_id else None
+        current_id = str(prev_id) if prev_id and str(prev_id) != "0" else None
 
     seasons.reverse()  # oldest first
     return seasons
