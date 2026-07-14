@@ -550,11 +550,28 @@ th.sort-desc::after{content:' ▼';font-size:10px;color:var(--gold)}
 .filter-bar select:hover{border-color:var(--surface-3)}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+/* standings leaderboard */
+.player-cell{display:flex;align-items:center;gap:.6rem}
+.player-name{font-weight:700;white-space:nowrap}
+.rank{font-family:var(--fd);font-weight:800;color:var(--text-dim);text-align:center;width:2.6rem}
+.rank-1{color:var(--gold)}
+.crown{color:var(--gold);vertical-align:-2px}
+tr.leader td{background:linear-gradient(90deg,var(--gold-glow),transparent 55%)}
+.expand-inner{padding:.75rem 1rem;background:var(--bg)}
 """
 
 _JS = r"""
 const DATA = __DATA_JSON__;
 const ACTIVE = new Set(DATA.active_managers);
+
+// Deterministic name → color for avatar chips. Shared by all render functions
+// across sections (standings, champions, h2h, pvp, records).
+function avatarColor(name) {
+  const pal = ['#FFC24B','#35D07F','#7B9BFF','#FF8DA1','#B79BFF','#F5A05A','#2CC5C5','#E0483F'];
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return pal[h % pal.length];
+}
 
 function activeFilter(selectId) {
   const sel = document.getElementById(selectId);
@@ -627,10 +644,12 @@ function show(id){
   function renderRow(r, i, ncols) {
     const tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
-    const trophy = r.titles > 0 ? ` <span style="color:#ffd700">${'🏆'.repeat(r.titles)}</span>` : '';
+    if (r.rank === 1) tr.classList.add('leader');
+    const initials = r.manager.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const crown = r.titles > 0 ? ` <svg class="crown" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M5 8l4 4 3-6 3 6 4-4-2 10H7z"/></svg>` : '';
     tr.innerHTML = `
-      <td class="rank">${i + 1}</td>
-      <td><span class="mgr-link"><strong>${r.manager}</strong></span>${trophy}</td>
+      <td class="rank${r.rank === 1 ? ' rank-1' : ''}">${i + 1}</td>
+      <td><span class="player-cell"><span class="avatar" style="--av:${avatarColor(r.manager)}">${initials}</span><span class="player-name">${r.manager}${crown}</span></span></td>
       <td class="neutral">${r.seasons}</td>
       <td class="win">${r.wins}</td>
       <td class="loss">${r.losses}</td>
@@ -678,15 +697,18 @@ function show(id){
       tbody.innerHTML = '';
       rows.forEach((sr, i) => {
         const tr = document.createElement('tr');
+        if (sr.rank === 1) tr.classList.add('leader');
         function finishBadge(sr) {
           if (sr.champion) return '🏆';
           if (sr.rank === 2) return '🥈';
           if (sr.rank === 3) return '🥉';
           return sr.rank > 0 ? '#' + sr.rank : '—';
         }
+        const initials = sr.manager.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        const crown = sr.champion ? ` <svg class="crown" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M5 8l4 4 3-6 3 6 4-4-2 10H7z"/></svg>` : '';
         tr.innerHTML = `
-          <td class="rank">${i + 1}</td>
-          <td><strong>${sr.manager}</strong></td>
+          <td class="rank${sr.rank === 1 ? ' rank-1' : ''}">${i + 1}</td>
+          <td><span class="player-cell"><span class="avatar" style="--av:${avatarColor(sr.manager)}">${initials}</span><span class="player-name">${sr.manager}${crown}</span></span></td>
           <td class="neutral" style="font-size:12px">${sr.team_name}</td>
           <td class="win">${sr.wins}</td>
           <td class="loss">${sr.losses}</td>
