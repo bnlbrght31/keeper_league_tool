@@ -93,3 +93,13 @@ def test_output_has_all_sections_and_data(tmp_path):
         assert f'id="{section_id}"' in html
     assert "const DATA =" in html
     assert "renderTable" in html   # standings JS still shipped
+
+
+def test_shell_uses_pickem_design_system(tmp_path):
+    html = _build_html(tmp_path)
+    assert "Archivo" in html and "Manrope" in html
+    assert "#FFC24B" in html            # gold token
+    assert "#0A0D16" in html            # charcoal bg token
+    assert 'class="topbar"' in html
+    assert 'class="tabbar"' in html     # mobile bottom bar
+    assert "prefers-reduced-motion" in html
