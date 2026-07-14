@@ -103,3 +103,4 @@ def test_shell_uses_pickem_design_system(tmp_path):
     assert 'class="topbar"' in html
     assert 'class="tabbar"' in html     # mobile bottom bar
     assert "prefers-reduced-motion" in html
+    assert ".filter-bar select" in html  # native filter selects themed to match dark UI

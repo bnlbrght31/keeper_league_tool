@@ -544,6 +544,10 @@ th.sort-desc::after{content:' ▼';font-size:10px;color:var(--gold)}
 .pill-select select{appearance:none;-webkit-appearance:none;font-family:var(--fb);font-weight:700;font-size:.9rem;
   color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--pill);
   padding:.5rem 2rem .5rem 1rem;cursor:pointer}
+.filter-bar select{font-family:var(--fb);font-weight:700;font-size:.9rem;color:var(--text);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:.5rem .9rem;cursor:pointer}
+.filter-bar select:hover{border-color:var(--surface-3)}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 """
