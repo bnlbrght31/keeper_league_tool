@@ -85,3 +85,11 @@ def test_build_writes_selfcontained_dashboard(tmp_path):
     assert "const DATA =" in html
     # value survives into the page: Bob is the reigning champion in the JSON blob
     assert '"manager":"Bob"' in html
+
+
+def test_output_has_all_sections_and_data(tmp_path):
+    html = _build_html(tmp_path)
+    for section_id in ("standings", "champions", "h2h", "pvp", "records"):
+        assert f'id="{section_id}"' in html
+    assert "const DATA =" in html
+    assert "renderTable" in html   # standings JS still shipped
