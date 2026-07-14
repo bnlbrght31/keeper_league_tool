@@ -558,6 +558,26 @@ th.sort-desc::after{content:' ▼';font-size:10px;color:var(--gold)}
 .crown{color:var(--gold);vertical-align:-2px}
 tr.leader td{background:linear-gradient(90deg,var(--gold-glow),transparent 55%)}
 .expand-inner{padding:.75rem 1rem;background:var(--bg)}
+
+/* champions: reigning-champ hero + year timeline */
+.champ-hero{position:relative;overflow:hidden;border:1px solid var(--gold);border-radius:var(--radius);
+  background:linear-gradient(135deg,rgba(255,194,75,.14),transparent 55%),var(--surface);
+  padding:1.25rem 1.4rem;display:flex;gap:1.1rem;align-items:center}
+.champ-trophy{width:64px;height:64px;flex-shrink:0;border-radius:16px;display:grid;place-items:center;
+  background:linear-gradient(150deg,var(--gold),var(--gold-deep));box-shadow:0 8px 24px -6px var(--gold-glow)}
+.champ-trophy svg{width:34px;height:34px}
+.champ-name{font-family:var(--fd);font-weight:900;font-size:1.7rem;letter-spacing:-.02em;line-height:1}
+.champ-team{color:var(--gold);font-weight:700;margin:.25rem 0 .35rem}
+.champ-meta{color:var(--text-muted);font-size:.9rem}
+.champ-meta b{color:var(--text);font-family:var(--fd)}
+.champ-timeline{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.champ-yr{display:grid;grid-template-columns:52px 28px 1fr auto;align-items:center;gap:.7rem;
+  padding:.6rem .9rem;border-bottom:1px solid var(--border-soft)}
+.champ-yr:last-child{border-bottom:none}
+.champ-yr-year{font-family:var(--fd);font-weight:800;color:var(--text-dim);font-size:.85rem}
+.champ-yr-name{font-weight:700}
+.champ-yr-team{color:var(--text-dim);font-weight:500}
+.champ-yr-badge{font-family:var(--fd);font-weight:800;font-size:.75rem;color:var(--gold);background:var(--gold-glow);border-radius:var(--pill);padding:.15rem .6rem}
 """
 
 _JS = r"""
@@ -758,20 +778,36 @@ function show(id){
 })();
 
 // ── Champions ──────────────────────────────────────────────────────────────
-(function buildChampions() {
-  const grid = document.getElementById('champ-grid');
-  DATA.champions.forEach(c => {
-    const div = document.createElement('div');
-    div.className = 'champ-card';
-    div.innerHTML = `
-      <div class="champ-year">🏆 ${c.season} Champion</div>
-      <div class="champ-manager">${c.manager}</div>
-      <div class="champ-team">${c.team_name}</div>
-      <div class="champ-record">${c.wins}–${c.losses} &nbsp;·&nbsp; ${c.pf.toFixed(1)} pts</div>
-    `;
-    grid.appendChild(div);
-  });
-})();
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+function buildChampions() {
+  const champs = DATA.champions;
+  if (!champs.length) return;
+  const titles = {};
+  DATA.alltime.forEach(r => titles[r.manager] = r.titles);
+  const c0 = champs[0];
+  const heroTitle = titles[c0.manager] || 1;
+  const hero = `<div class="eyebrow">★ ${c0.season} Champion</div>
+    <div class="champ-hero">
+      <div class="champ-trophy"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1200" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v4a6 6 0 0 1-12 0V4z"/><path d="M6 6H3v2a3 3 0 0 0 3 3M18 6h3v2a3 3 0 0 1-3 3M9 18h6M8 21h8M12 16v2"/></svg></div>
+      <div class="champ-body">
+        <div class="champ-name">${c0.manager}</div>
+        <div class="champ-team">${c0.team_name}</div>
+        <div class="champ-meta"><b>${c0.wins}–${c0.losses}</b> · ${ordinal(heroTitle)} title</div>
+      </div>
+    </div>`;
+  const rows = champs.map(c => `<div class="champ-yr">
+      <span class="champ-yr-year">${c.season}</span>
+      <span class="avatar" style="--av:${avatarColor(c.manager)}">${c.manager.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}</span>
+      <span class="champ-yr-name">${c.manager} · <span class="champ-yr-team">${c.team_name}</span></span>
+      <span class="champ-yr-badge">${c.wins}–${c.losses}</span>
+    </div>`).join('');
+  document.getElementById('champions-body').innerHTML =
+    hero + `<div class="eyebrow" style="margin-top:1.5rem">Champions by year</div><div class="champ-timeline">${rows}</div>`;
+}
+buildChampions();
 
 // ── Head-to-Head ───────────────────────────────────────────────────────────
 function renderH2H() {
@@ -1155,7 +1191,7 @@ _SKELETON = """<!DOCTYPE html>
 
 <div id="champions" class="section">
   <h2>Hall of Champions</h2>
-  <div class="champ-grid" id="champ-grid"></div>
+  <div id="champions-body"></div>
 </div>
 
 <div id="h2h" class="section">

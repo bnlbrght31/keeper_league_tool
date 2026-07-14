@@ -110,3 +110,9 @@ def test_standings_has_leaderboard_styling(tmp_path):
     html = _build_html(tmp_path)
     assert "player-cell" in html and "class=\"avatar\"" in html.replace("'", '"')
     assert "rank-1" in html
+
+
+def test_champions_hero_and_timeline(tmp_path):
+    html = _build_html(tmp_path)
+    assert "champ-hero" in html
+    assert "champ-timeline" in html
