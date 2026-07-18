@@ -603,6 +603,13 @@ tr.leader td{background:linear-gradient(90deg,var(--gold-glow),transparent 55%)}
 .v-owns,.v-leads{background:var(--success-dim);color:var(--success)}
 .v-even{background:var(--surface-2);color:var(--text-dim)}
 .v-trails{background:var(--danger-dim);color:var(--danger)}
+/* Player vs Player versus header */
+.pvp-versus{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.2rem;margin-bottom:1rem}
+.pvp-side{display:flex;align-items:center;gap:.6rem;font-weight:700}
+.pvp-right{justify-content:flex-end}
+.pvp-score{font-family:var(--fd);font-weight:900;font-size:1.6rem;color:var(--gold)}
+.pvp-dash{color:var(--text-dim);margin:0 .25rem}
 """
 
 _JS = r"""
@@ -1015,12 +1022,20 @@ window.renderPvP = function() {
     return;
   }
 
+  const rAB = (DATA.h2h.matrix[p1] && DATA.h2h.matrix[p1][p2]) || {wins:0,losses:0};
+  const av = (n)=>`<span class="avatar" style="--av:${avatarColor(n)}">${n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</span>`;
+  const versus = `<div class="pvp-versus">
+    <div class="pvp-side">${av(p1)}<span class="pvp-mgr">${p1}</span></div>
+    <div class="pvp-score">${rAB.wins}<span class="pvp-dash">–</span>${rAB.losses}</div>
+    <div class="pvp-side pvp-right"><span class="pvp-mgr">${p2}</span>${av(p2)}</div>
+  </div>`;
+
   const log = DATA.h2h.matchup_log.filter(
     m => (m.ma === p1 && m.mb === p2) || (m.ma === p2 && m.mb === p1)
   );
 
   if (!log.length) {
-    results.innerHTML = '<p style="color:#8b949e">No matchups found between these players.</p>';
+    results.innerHTML = versus + '<p style="color:#8b949e">No matchups found between these players.</p>';
     summary.textContent = '';
     return;
   }
@@ -1069,7 +1084,7 @@ window.renderPvP = function() {
     </tr>`;
   }).join('');
 
-  results.innerHTML = `
+  results.innerHTML = versus + `
     <table style="width:100%;border-collapse:collapse">
       <thead><tr>
         <th style="text-align:left">Season</th>
@@ -1308,15 +1323,15 @@ _SKELETON = """<!DOCTYPE html>
 <div id="pvp" class="section">
   <h2>Player vs Player</h2>
   <div class="card">
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px">
-      <select id="pvp-p1" onchange="renderPvP()" style="min-width:160px;padding:8px 12px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:6px;font-size:15px">
+    <div class="filter-bar">
+      <select id="pvp-p1" onchange="renderPvP()" style="min-width:160px">
         <option value="">— Player 1 —</option>
       </select>
-      <span style="color:#8b949e;font-weight:700;font-size:18px">vs</span>
-      <select id="pvp-p2" onchange="renderPvP()" style="min-width:160px;padding:8px 12px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:6px;font-size:15px">
+      <span style="color:var(--text-dim);font-weight:700;font-size:18px">vs</span>
+      <select id="pvp-p2" onchange="renderPvP()" style="min-width:160px">
         <option value="">— Player 2 —</option>
       </select>
-      <span id="pvp-summary" style="color:#8b949e;font-size:14px;margin-left:8px"></span>
+      <span id="pvp-summary" style="color:var(--text-dim);font-size:14px;margin-left:8px"></span>
     </div>
     <div id="pvp-results"></div>
   </div>

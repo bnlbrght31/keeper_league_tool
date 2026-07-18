@@ -130,3 +130,8 @@ def test_h2h_has_matrix_and_mobile_list(tmp_path):
     assert "streak-mgr-tbl" in html
     assert "streak-alltime-tbl" in html
     assert "streak-active-tbl" in html
+
+
+def test_pvp_has_versus_header(tmp_path):
+    html = _build_html(tmp_path)
+    assert "pvp-versus" in html
