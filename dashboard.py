@@ -578,6 +578,31 @@ tr.leader td{background:linear-gradient(90deg,var(--gold-glow),transparent 55%)}
 .champ-yr-name{font-weight:700}
 .champ-yr-team{color:var(--text-dim);font-weight:500}
 .champ-yr-badge{font-family:var(--fd);font-weight:800;font-size:.75rem;color:var(--gold);background:var(--gold-glow);border-radius:var(--pill);padding:.15rem .6rem}
+
+/* Head-to-Head: desktop matrix / mobile focal list responsive split */
+.h2h-mobile{display:block}
+.h2h-desktop{display:none}
+@media(min-width:720px){.h2h-mobile{display:none}.h2h-desktop{display:block}}
+.matrix-wrap{overflow-x:auto}
+.h2h-matrix{width:auto;font-size:.72rem;white-space:nowrap}
+.h2h-matrix th,.h2h-matrix td{padding:.4rem .55rem;text-align:center;border:1px solid var(--border-soft);font-family:var(--fd);font-weight:700;color:var(--text)}
+.h2h-matrix th{color:var(--text-dim);background:var(--surface-2)}
+.h2h-matrix .row-label{position:sticky;left:0;z-index:1;background:var(--surface-2);color:var(--text);text-align:right}
+.h2h-matrix td.self{background:var(--bg);color:var(--text-dim)}
+.h2h-matrix td.even{color:var(--text-dim)}
+.h2h-matrix td.winning{background:var(--success-dim);color:var(--success)}
+.h2h-matrix td.dominant{background:rgba(53,208,127,.28);color:#7dffb8}
+.h2h-matrix td.losing{background:var(--danger-dim);color:var(--danger)}
+.h2h-matrix td.dominated{background:rgba(255,92,108,.28);color:#ffb3bb}
+/* Mobile focal-manager list */
+.h2h-row{display:grid;grid-template-columns:28px 1fr auto auto;align-items:center;gap:.7rem;padding:.6rem .9rem;border-bottom:1px solid var(--border-soft)}
+.h2h-row:last-child{border-bottom:none}
+.h2h-name{font-weight:700;color:var(--text)}
+.h2h-rec{font-family:var(--fd);font-weight:800;font-variant-numeric:tabular-nums}
+.h2h-verb{font-family:var(--fd);font-weight:800;font-size:.6rem;text-transform:uppercase;letter-spacing:.04em;padding:.2rem .55rem;border-radius:var(--pill)}
+.v-owns,.v-leads{background:var(--success-dim);color:var(--success)}
+.v-even{background:var(--surface-2);color:var(--text-dim)}
+.v-trails{background:var(--danger-dim);color:var(--danger)}
 """
 
 _JS = r"""
@@ -810,6 +835,10 @@ function buildChampions() {
 buildChampions();
 
 // ── Head-to-Head ───────────────────────────────────────────────────────────
+// Record → short verb + matching pill class. Shared by the mobile focal list.
+function recordVerb(w, l) { return w >= l + 5 ? 'Owns' : w > l ? 'Leads' : w === l ? 'Even' : 'Trails'; }
+function verbClass(w, l) { return w >= l + 5 ? 'v-owns' : w > l ? 'v-leads' : w === l ? 'v-even' : 'v-trails'; }
+
 function renderH2H() {
   const flt = activeFilter('h2h-filter');
   const {managers: allMgrs, matrix, nemeses, streaks} = DATA.h2h;
@@ -842,6 +871,33 @@ function renderH2H() {
     tbl.appendChild(tr);
   });
 
+  // Mobile focal list — one row per other visible manager, derived from the
+  // same matrix. Options rebuilt each render so the All/Active filter applies;
+  // current selection is preserved when the focal manager is still visible.
+  const focus = document.getElementById('h2h-focus');
+  const prev = focus.value;
+  focus.innerHTML = managers.map(m => `<option>${m}</option>`).join('');
+  focus.value = managers.includes(prev) ? prev : (managers[0] || '');
+  function renderFocusList() {
+    const a = focus.value || managers[0];
+    const list = document.getElementById('h2h-list');
+    if (!a) { list.innerHTML = ''; return; }
+    list.innerHTML = managers.filter(b => b !== a).map(b => {
+      const rec = matrix[a][b];
+      if (!rec) return '';
+      const w = rec.wins, l = rec.losses, t = rec.ties || 0;
+      const initials = b.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase();
+      const lbl = t > 0 ? `${w}–${l}–${t}` : `${w}–${l}`;
+      return `<div class="h2h-row">
+        <span class="avatar" style="--av:${avatarColor(b)}">${initials}</span>
+        <span class="h2h-name">${b}</span>
+        <span class="h2h-rec">${lbl}</span>
+        <span class="h2h-verb ${verbClass(w, l)}">${recordVerb(w, l)}</span></div>`;
+    }).join('');
+  }
+  focus.onchange = renderFocusList;
+  renderFocusList();
+
   // Nemesis — recompute from matrix against visible opponents only
   const ntbody = document.querySelector('#nemesis-tbl tbody');
   ntbody.innerHTML = '';
@@ -862,8 +918,8 @@ function renderH2H() {
     tr.className = 'nemesis-row';
     tr.innerHTML = `
       <td>${m}</td>
-      <td style="color:#f85149">${worstOpp}</td>
-      <td class="loss">${rec.wins}–${rec.losses}${rec.ties ? `–${rec.ties}` : ''} (${(worstPct*100).toFixed(0)}% win rate)</td>
+      <td style="color:var(--danger);font-weight:700">${worstOpp}</td>
+      <td style="color:var(--danger)">${rec.wins}–${rec.losses}${rec.ties ? `–${rec.ties}` : ''} (${(worstPct*100).toFixed(0)}% win rate)</td>
     `;
     ntbody.appendChild(tr);
   });
@@ -905,9 +961,9 @@ function renderH2H() {
     tr.innerHTML = `
       <td><strong>${m}</strong></td>
       <td>${best.length}</td>
-      <td class="neutral">${oppLabel(best)}</td>
+      <td style="color:var(--text-dim)">${oppLabel(best)}</td>
       <td>${act ? act.length : '—'}</td>
-      <td class="neutral">${act ? oppLabel(act) : '—'}</td>
+      <td style="color:var(--text-dim)">${act ? oppLabel(act) : '—'}</td>
     `;
     pmBody.appendChild(tr);
   });
@@ -918,10 +974,10 @@ function renderH2H() {
   atBody.innerHTML = '';
   top_alltime.forEach(s => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><strong>${s.manager}</strong></td><td class="neutral">${s.vs}</td><td style="font-weight:700">${s.alltime}</td>`;
+    tr.innerHTML = `<td><strong>${s.manager}</strong></td><td style="color:var(--text-dim)">${s.vs}</td><td style="font-weight:700">${s.alltime}</td>`;
     atBody.appendChild(tr);
   });
-  if (!top_alltime.length) atBody.innerHTML = '<tr><td colspan="3" class="neutral">No data</td></tr>';
+  if (!top_alltime.length) atBody.innerHTML = '<tr><td colspan="3" style="color:var(--text-dim)">No data</td></tr>';
 
   // Top 5 active from filtered pairs
   const top_active = [...pairs].filter(p => p.active_wins >= 2).sort((a,b) => b.active_wins - a.active_wins).slice(0,5);
@@ -929,10 +985,10 @@ function renderH2H() {
   acBody.innerHTML = '';
   top_active.forEach(s => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><strong>${s.manager}</strong></td><td class="neutral">${s.vs}</td><td style="font-weight:700;color:#3fb950">${s.active_wins}</td>`;
+    tr.innerHTML = `<td><strong>${s.manager}</strong></td><td style="color:var(--text-dim)">${s.vs}</td><td style="font-weight:700;color:var(--success)">${s.active_wins}</td>`;
     acBody.appendChild(tr);
   });
-  if (!top_active.length) acBody.innerHTML = '<tr><td colspan="3" class="neutral">No active streaks ≥ 2</td></tr>';
+  if (!top_active.length) acBody.innerHTML = '<tr><td colspan="3" style="color:var(--text-dim)">No active streaks ≥ 2</td></tr>';
 }
 renderH2H();
 
@@ -1203,8 +1259,15 @@ _SKELETON = """<!DOCTYPE html>
     </select>
   </div>
   <h2>Head-to-Head Records</h2>
-  <div class="card matrix-wrap">
-    <table class="matrix" id="h2h-tbl"></table>
+  <div class="card matrix-wrap h2h-desktop">
+    <table class="matrix h2h-matrix" id="h2h-tbl"></table>
+  </div>
+  <div class="h2h-mobile">
+    <div class="filter-bar">
+      <label for="h2h-focus">Manager</label>
+      <span class="pill-select"><select id="h2h-focus"></select></span>
+    </div>
+    <div class="card" id="h2h-list"></div>
   </div>
   <h2 style="margin-top:32px">Nemesis Report</h2>
   <div class="card">

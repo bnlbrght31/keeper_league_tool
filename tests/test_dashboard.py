@@ -116,3 +116,17 @@ def test_champions_hero_and_timeline(tmp_path):
     html = _build_html(tmp_path)
     assert "champ-hero" in html
     assert "champ-timeline" in html
+
+
+def test_h2h_has_matrix_and_mobile_list(tmp_path):
+    html = _build_html(tmp_path)
+    # Restyled desktop matrix + new mobile "pick a manager" view
+    assert "h2h-matrix" in html
+    assert "h2h-focus" in html      # mobile focal-manager selector
+    assert "h2h-list" in html
+    # Preservation: the filter + nemesis + all four streak tables must remain
+    assert 'id="h2h-filter"' in html
+    assert "nemesis-tbl" in html
+    assert "streak-mgr-tbl" in html
+    assert "streak-alltime-tbl" in html
+    assert "streak-active-tbl" in html
