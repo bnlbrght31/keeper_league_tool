@@ -152,3 +152,17 @@ def test_pvp_versus_header_uses_allgames_matchup_log_not_regular_season_matrix(t
     # (derived from matchup_log), not from a separate DATA.h2h.matrix lookup.
     assert '<div class="pvp-score">${p1w}' in fn_src
     assert "DATA.h2h.matrix" not in fn_src
+
+
+def test_records_uses_stat_cards(tmp_path):
+    html = _build_html(tmp_path)
+    assert "stat-grid" in html and "stat-card" in html
+    # Preservation: Playoff Report table and all eight record cards must remain.
+    assert "playoff-report-tbl" in html
+    assert "Biggest Blowout" in html and "Longest Win Streak" in html
+    assert "Highest Single-Week Score" in html
+    assert "Lowest Single-Week Score" in html
+    assert "Closest Game" in html
+    assert "Best Single Season" in html
+    assert "Worst Single Season" in html
+    assert "Longest Losing Streak" in html

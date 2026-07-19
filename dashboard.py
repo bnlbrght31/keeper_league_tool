@@ -610,6 +610,21 @@ tr.leader td{background:linear-gradient(90deg,var(--gold-glow),transparent 55%)}
 .pvp-right{justify-content:flex-end}
 .pvp-score{font-family:var(--fd);font-weight:900;font-size:1.6rem;color:var(--gold)}
 .pvp-dash{color:var(--text-dim);margin:0 .25rem}
+/* Records — stat cards */
+.stat-grid{display:grid;grid-template-columns:1fr;gap:.85rem}
+@media(min-width:640px){.stat-grid{grid-template-columns:1fr 1fr}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;box-shadow:var(--shadow)}
+.stat-label{font-family:var(--fd);font-size:.72rem;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:.09em;margin-bottom:.5rem}
+.stat-value{font-family:var(--fd);font-weight:900;font-size:1.6rem;color:var(--text);line-height:1.1}
+.stat-sub{color:var(--gold);font-size:.85rem;margin-top:.2rem}
+.rec-detail{color:var(--text-dim);font-size:.8rem;margin-top:.2rem}
+.rec-expand{margin-top:.75rem;border-top:1px solid var(--border-soft);padding-top:.6rem;font-size:.85rem;color:var(--text-muted)}
+.rec-expand-btn{cursor:pointer;font-weight:700;color:var(--gold);user-select:none}
+.rec-expand-btn:hover{color:var(--gold-deep)}
+.rec-expand-list{margin-top:.5rem;display:flex;flex-direction:column;gap:.4rem}
+.rec-expand-row{padding:.3rem 0;border-bottom:1px solid var(--border-soft);color:var(--text-muted)}
+.rec-expand-row:last-child{border-bottom:none}
+.rec-expand-rank{font-family:var(--fd);font-weight:800;color:var(--text-dim);margin-right:.5rem}
 """
 
 _JS = r"""
@@ -1110,15 +1125,17 @@ window.renderPvP = function() {
   function card(label, items, fmtVal, fmtSub, fmtDetail) {
     if (!items || !items.length) return;
     const d = document.createElement('div');
-    d.className = 'rec-card';
+    d.className = 'stat-card';
     const top = items[0];
     d.innerHTML = `
-      <div class="rec-label">${label}</div>
-      <div class="rec-value">${fmtVal(top)}</div>
-      <div class="rec-sub">${fmtSub(top)}</div>
+      <h3 class="stat-label">${label}</h3>
+      <div class="stat-value">${fmtVal(top)}</div>
+      <div class="stat-sub">${fmtSub(top)}</div>
       ${fmtDetail ? `<div class="rec-detail">${fmtDetail(top)}</div>` : ''}
     `;
     if (items.length > 1) {
+      const wrap = document.createElement('div');
+      wrap.className = 'rec-expand';
       const btn = document.createElement('div');
       btn.className = 'rec-expand-btn';
       btn.textContent = `▾ see top ${items.length}`;
@@ -1137,8 +1154,9 @@ window.renderPvP = function() {
         list.style.display = open ? 'none' : '';
         btn.textContent = open ? `▾ see top ${items.length}` : '▴ collapse';
       });
-      d.appendChild(btn);
-      d.appendChild(list);
+      wrap.appendChild(btn);
+      wrap.appendChild(list);
+      d.appendChild(wrap);
     }
     grid.appendChild(d);
   }
@@ -1186,7 +1204,7 @@ window.renderPvP = function() {
     const poRec = r.po_wins + '–' + r.po_losses;
     const poPct = r.po_wins + r.po_losses > 0
       ? (r.po_pct * 100).toFixed(1) + '%' : '—';
-    const trophy = r.titles > 0 ? ' <span style="color:#ffd700">' + '🏆'.repeat(r.titles) + '</span>' : '';
+    const trophy = r.titles > 0 ? ' <span style="color:var(--gold)">' + '🏆'.repeat(r.titles) + '</span>' : '';
     tr.innerHTML = `
       <td><strong>${r.manager}</strong></td>
       <td style="text-align:center">${r.apps}</td>
@@ -1340,7 +1358,7 @@ _SKELETON = """<!DOCTYPE html>
 
 <div id="records" class="section">
   <h2>Records &amp; Milestones</h2>
-  <div class="records-grid" id="records-grid"></div>
+  <div class="stat-grid" id="records-grid"></div>
   <h2 style="margin-top:32px">Playoff Report</h2>
   <div class="card">
     <table id="playoff-report-tbl">
