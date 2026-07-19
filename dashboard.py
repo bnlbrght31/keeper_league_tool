@@ -1022,23 +1022,11 @@ window.renderPvP = function() {
     return;
   }
 
-  const rAB = (DATA.h2h.matrix[p1] && DATA.h2h.matrix[p1][p2]) || {wins:0,losses:0};
   const av = (n)=>`<span class="avatar" style="--av:${avatarColor(n)}">${n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</span>`;
-  const versus = `<div class="pvp-versus">
-    <div class="pvp-side">${av(p1)}<span class="pvp-mgr">${p1}</span></div>
-    <div class="pvp-score">${rAB.wins}<span class="pvp-dash">–</span>${rAB.losses}</div>
-    <div class="pvp-side pvp-right"><span class="pvp-mgr">${p2}</span>${av(p2)}</div>
-  </div>`;
 
   const log = DATA.h2h.matchup_log.filter(
     m => (m.ma === p1 && m.mb === p2) || (m.ma === p2 && m.mb === p1)
   );
-
-  if (!log.length) {
-    results.innerHTML = versus + '<p style="color:#8b949e">No matchups found between these players.</p>';
-    summary.textContent = '';
-    return;
-  }
 
   let p1w = 0, p2w = 0, ties = 0;
   log.forEach(m => {
@@ -1048,6 +1036,19 @@ window.renderPvP = function() {
     else if (p2score > p1score) p2w++;
     else ties++;
   });
+
+  const versus = `<div class="pvp-versus">
+    <div class="pvp-side">${av(p1)}<span class="pvp-mgr">${p1}</span></div>
+    <div class="pvp-score">${p1w}<span class="pvp-dash">–</span>${p2w}</div>
+    <div class="pvp-side pvp-right"><span class="pvp-mgr">${p2}</span>${av(p2)}</div>
+  </div>`;
+
+  if (!log.length) {
+    results.innerHTML = versus + '<p style="color:#8b949e">No matchups found between these players.</p>';
+    summary.textContent = '';
+    return;
+  }
+
   summary.textContent = ties > 0
     ? `${p1}: ${p1w}–${p2w}–${ties} vs ${p2}`
     : `${p1}: ${p1w}–${p2w} vs ${p2}`;

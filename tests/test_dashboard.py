@@ -1,4 +1,6 @@
 # tests/test_dashboard.py
+import re
+
 import dashboard
 
 
@@ -135,3 +137,18 @@ def test_h2h_has_matrix_and_mobile_list(tmp_path):
 def test_pvp_has_versus_header(tmp_path):
     html = _build_html(tmp_path)
     assert "pvp-versus" in html
+
+
+def test_pvp_versus_header_uses_allgames_matchup_log_not_regular_season_matrix(tmp_path):
+    """The versus-header record must match the summary/table below it, which are built
+    from DATA.h2h.matchup_log (includes playoffs) — not DATA.h2h.matrix (regular-season
+    only). Regression for the review finding on Task 7."""
+    html = _build_html(tmp_path)
+    m = re.search(r"window\.renderPvP = function\(\) \{.*?\n\};", html, re.S)
+    assert m, "renderPvP function not found in shipped JS"
+    fn_src = m.group(0)
+
+    # Header score must be built from the same p1w/p2w tally the summary line uses
+    # (derived from matchup_log), not from a separate DATA.h2h.matrix lookup.
+    assert '<div class="pvp-score">${p1w}' in fn_src
+    assert "DATA.h2h.matrix" not in fn_src
