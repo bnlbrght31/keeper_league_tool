@@ -1251,7 +1251,7 @@ _SKELETON = """<!DOCTYPE html>
     <label for="standings-filter">Players:</label>
     <select id="standings-filter" onchange="renderTable()">
       <option value="all">All Players</option>
-      <option value="active">Active Players</option>
+      <option value="active" selected>Active Players</option>
     </select>
     <label for="season-filter" style="margin-left:12px">Season:</label>
     <select id="season-filter" onchange="renderTable()">
@@ -1289,7 +1289,7 @@ _SKELETON = """<!DOCTYPE html>
     <label for="h2h-filter">Show:</label>
     <select id="h2h-filter" onchange="renderH2H()">
       <option value="all">All Players</option>
-      <option value="active">Active Players</option>
+      <option value="active" selected>Active Players</option>
     </select>
   </div>
   <h2>Head-to-Head Records</h2>
