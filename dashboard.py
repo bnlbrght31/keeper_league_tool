@@ -1409,13 +1409,16 @@ def build_dashboard(seasons, output_path="dashboard/index.html"):
     }
 
     data_json = json.dumps(stats, separators=(",", ":"))
-    js = _JS.replace("__DATA_JSON__", data_json)
+    # Inject the user-derived data JSON LAST so a team/manager name that happens
+    # to contain a marker literal (e.g. "__LEAGUE_NAME__") can't be corrupted by
+    # a later .replace() — the data is never re-scanned after it lands.
     html = (
         _SKELETON
         .replace("__CSS__", _CSS)
-        .replace("__JS__", js)
+        .replace("__JS__", _JS)
         .replace("__LEAGUE_NAME__", league_name)
         .replace("__YEAR_RANGE__", year_range)
+        .replace("__DATA_JSON__", data_json)
     )
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
